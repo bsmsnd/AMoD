@@ -83,11 +83,18 @@ class DispatchingLogic:
         # Prepare for next cycle
         self.last_state = next_state
 
+        # Commmand Finalize: coordination change,
+
+
         return [pickup, rebalance]
 
     def data_processing(self, status):
         # This function processes the data so that we can use it for further
         # Expected to do: Grid, # of requests within the grid, Poisson Distribution with parameter lambda, ...
+
+        # coordination change
+
+
         pass
 
     def optimize_model(self, GAMMA=0.999):
