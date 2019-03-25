@@ -14,7 +14,7 @@ class AidoGuest:
     # default values for demo
     SCENARIO = 'SanFrancisco.20080518'
     REQUEST_NUMBER_DESIRED = 500
-    NUMBER_OF_VEHICLES = 20
+    NUMBER_OF_VEHICLES = 20  # Change DispatchingLogic.py as well!
     PRINT_SCORE_PERIOD = 200
 
     def __init__(self, ip='localhost'):
