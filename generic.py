@@ -5,7 +5,7 @@ def which_area(x, y):
     # x,y should be coordinates in model.
     lngArea = int(x // (GRAPHMAXCOORDINATE / MAP_DIVIDE))
     latArea = int(y // (GRAPHMAXCOORDINATE / MAP_DIVIDE))
-    return 5 * latArea + lngArea
+    return MAP_DIVIDE * latArea + lngArea
 
 def arg_max(x):
     # find the index of the max value for an iterable

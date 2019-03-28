@@ -61,8 +61,6 @@ class DispatchingLogic:
         self.keep_history_time = 1800
         self.time = 0
 
-
-
         # Assume that coordination will be converted to distances in miles
         self.unitLongitude = (self.lngMax - self.lngMin) / GRAPHMAXCOORDINATE
         self.unitLatitude = (self.latMax - self.latMin) / GRAPHMAXCOORDINATE
@@ -71,7 +69,6 @@ class DispatchingLogic:
 
         # Requests
         self.responded_requests = []
-
 
 
     def of(self, status):
@@ -134,7 +131,7 @@ class DispatchingLogic:
         return [pickup, rebalance]
 
     def data_processing(self, status):
-        # This function processes the data so that we can use it for further
+        # This function processes the data so that we can use it for further learning
         # Expected to do: Grid, # of requests within the grid, Poisson Distribution with parameter lambda, ...
 
         self.time = status[0]
@@ -154,7 +151,7 @@ class DispatchingLogic:
 
         # Process Requests
         # Process Request Distribution & open requests
-        open_requests = []
+        open_requests = []  # this saves open requests' labels & ori. position
         # add
         for request in status[2]:
             if request[0] < self.numRequest:
@@ -163,13 +160,19 @@ class DispatchingLogic:
                     if request[0] == responded:
                         flag = True
                         break
-                if flag == False:
+                if not flag:
                     open_requests.append([request[0], request[2]])
                 pass
             else:
-                self.history_requests.append([request[1], which_area(request[2][0], request[2][1])])
+                self.history_requests.append([request[1], which_area(request[ 2][0], request[2][1])])
                 self.numRequest = request[0]
                 open_requests.append([request[0], request[2]])
+
+        # Here put requests into areas: open_requests_in_area
+        open_requests_in_area = [0 for _ in range(MAP_DIVIDE ** 2)]
+        for req in open_requests:
+            my_area = which_area(req[1][0], req[1][1])
+            open_requests_in_area[my_area] += 1
 
         while self.history_requests[0][0] < self.time - self.keep_history_time:
             self.history_requests.pop(0)
@@ -179,12 +182,12 @@ class DispatchingLogic:
             request_distribution[his_request[1]] += 1
         # update s', r
         for i in range(NUMBER_OF_VEHICLES):
-            if self.fleet[i] == 1:
+            if self.fleet[i].flagStateChange == 1:
                 self.fleet[i].data[2] = [] # match the variable state
                 self.fleet[i].data[3] = reward
                 memory.push(*tuple(self.fleet[i].data))
 
-        # remove
+        # remove ?
         return num_vehicles_in_area, distance_to_each_area, request_distribution, open_requests
 
     def optimize_model(self, GAMMA=0.999):
@@ -244,3 +247,5 @@ class DispatchingLogic:
             return [loc[0] * self.unitLongitude + self.lngMin, loc[1] * self.unitLatitude + self.latMin]
         else:
             raise ValueError
+
+    def should_give_reward(self, vehicle, new_status)
