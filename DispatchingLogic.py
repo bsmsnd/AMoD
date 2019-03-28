@@ -139,10 +139,14 @@ class DispatchingLogic:
         # coordination change and update vehicle information
         num_vehicles_in_area = [0 for _ in range(MAP_DIVIDE ** 2)]
         distance_to_each_area = [[0. for _ in range(MAP_DIVIDE ** 2)] for __ in range(NUMBER_OF_VEHICLES)]
+        vehicles_should_get_rewards = []
 
         for i in range(NUMBER_OF_VEHICLES):
             loc = self.coordinate_change('TO_MODEL', status[1][i][1])
-            status = status[1][i][2]
+            status = status[1][i][2]  # this status has the type RoboTaxiStatus.XXX
+            should_get_reward = self.should_give_reward(self.fleet[i], vehicle_status_converter(status, 'TO_MODEL'))
+            if should_get_reward:
+                vehicles_should_get_rewards.append([i, self.fleet[i].status])
             self.fleet[i].update(loc, status, self.time)
             if self.fleet[i].status is STAY or self.fleet[i].status is REBALANCE:
                 num_vehicles_in_area[self.fleet[i].area] += 1
@@ -177,9 +181,11 @@ class DispatchingLogic:
         while self.history_requests[0][0] < self.time - self.keep_history_time:
             self.history_requests.pop(0)
 
+        # Update history request on the map
         request_distribution = [0 for _ in range(MAP_DIVIDE ** 2)]
         for his_request in self.history_requests:
             request_distribution[his_request[1]] += 1
+
         # update s', r
         for i in range(NUMBER_OF_VEHICLES):
             if self.fleet[i].flagStateChange == 1:
@@ -235,9 +241,19 @@ class DispatchingLogic:
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
-    def reward_compute(self, last_state, state):
+    def reward_compute(self, vehicle, new_state):
         # this function computes the reward given the last state and current state
+
+        assert isinstance(vehicle, Vehicle)
         reward = None
+        if vehicle.status == REBALANCE and new_state == STAY:  # end of rebalance: give deduction
+            reward = (self.time - vehicle.rebalanceStartTime) * DISTANCE_COST
+        if new_state == DRIVEWITHCUSTOMER and vehicle.status != DRIVEWITHCUSTOMER:
+            reward = PICKUP_REWARD
+            if vehicle.getPickupAtRebalance == True:
+                reward += (self.time - vehicle.rebalanceStartTime) * DISTANCE_COST
+            else:
+                reward += (self.time - vehicle.pickupStartTime) * DISTANCE_COST
         return reward
 
     def coordinate_change(self, direction, loc):
@@ -248,4 +264,16 @@ class DispatchingLogic:
         else:
             raise ValueError
 
-    def should_give_reward(self, vehicle, new_status)
+    def should_give_reward(self, vehicle, new_state):
+        # this function decides if a reward should be given
+        # input: vehicle and new status for this vehicle
+        # output: bool(True = should give a reward)
+
+        assert isinstance(vehicle, Vehicle)
+        if vehicle.status == REBALANCE and new_state == STAY:  # REBALANCE --> STAY: give deduction
+            return True
+        if new_state == DRIVEWITHCUSTOMER and vehicle.status != DRIVEWITHCUSTOMER:  # REBALANCE/PICKUP/STAY --> DRIVEWITHCUSTOMER
+            return True
+
+        return False
+
