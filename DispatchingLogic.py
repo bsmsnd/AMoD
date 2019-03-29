@@ -10,6 +10,7 @@ from collections import namedtuple
 from Vehicle import Vehicle
 from constant import *
 from generic import *
+from distance_on_unit_sphere import *
 
 
 memory = ReplayMemory(10000)
@@ -56,14 +57,17 @@ class DispatchingLogic:
         self.optimizer = optim.RMSprop(self.policy_net.parameters())
 
         self.history_requests = []
-        self.numRequest = 0
+        self.numRequestSeen = 0
 
         self.keep_history_time = 1800
         self.time = 0
 
         # Assume that coordination will be converted to distances in miles
         self.unitLongitude = (self.lngMax - self.lngMin) / GRAPHMAXCOORDINATE
-        self.unitLatitude = (self.latMax - self.latMin) / GRAPHMAXCOORDINATE
+        self.map_width = distance_on_unit_sphere(self.latMin, self.lngMin, self.latMin, self.lngMax)
+        self.map_length = distance_on_unit_sphere(self.latMax, self.lngMax, self.latMin, self.lngMax)
+        LNG_SCALE = GRAPHMAXCOORDINATE * self.map_length / self.map_width
+        self.unitLatitude = (self.lngMax - self.lngMin) / LNG_SCALE
 
         self.fleet = [Vehicle() for _ in range(NUMBER_OF_VEHICLES)]
 
@@ -81,20 +85,56 @@ class DispatchingLogic:
         rebalance = []
 
         # Pre-process the data
-        num_vehicles_in_area, distance_to_each_area, request_distribution, open_requests = self.data_processing(status)
-        state, action, next_state = self.last_state, None, None
+        # num_vehicles_in_area, distance_to_each_area, request_distribution, open_requests = self.data_preprocess(status)
+        states, open_requests_info_in_area = self.data_preprocess(status)
+        # States: [0] open requests in surroundings, [1] history req in surroundings
+        #         [2] number vehicles, [3] label which car, [4] which area
+        #TODO: CNN and DQN
 
-        for request in open_requests:
-            vehicles_to_request_distance = [1e8 for i in range(NUMBER_OF_VEHICLES)]
-            for i in range(NUMBER_OF_VEHICLES):
-                if self.fleet[i].status == STAY or self.fleet[i].status == REBALANCE:
-                    vehicles_to_request_distance[i] = self.fleet[i].get_distance_to(request[1][0], request[1][1])
-            choose_car = arg_min(vehicles_to_request_distance)
-            if vehicles_to_request_distance[choose_car] > 1e7:  # if no car available
+        actions = None
+        # The list output of DQNs, length of which is the same as that of states
+        # Some possible values are defined as follows:
+        # 0: STAY, 1-9: PICKUP at the relative region from topleft to bottomright
+        # 10-18: REBALANCE to 1-9 regions from topleft to bottomright
+
+        pickup_list = [[]] * (MAP_DIVIDE ** 2)
+        for i, individual_state in enumerate(states):
+            cmd = actions[i]
+            if cmd >= 1 and cmd <= 9:
+                to_area2D = [individual_state[4] // MAP_DIVIDE, individual_state[4] % MAP_DIVIDE] + NINE_REGIONS[cmd - 1]
+                goto = to_area2D[0] * MAP_DIVIDE + to_area2D[1]
+                pickup_list[goto].append(individual_state[3])
+            if cmd > 9:
+                to_which_area = [individual_state[4] // MAP_DIVIDE, individual_state[4] % MAP_DIVIDE] + NINE_REGIONS[cmd - 9 - 1]
+                if self.fleet[i].rebalanceTo != to_which_area:  # State will change!
+
+
                 pass
-            else:
-                pickup.append([choose_car, request[0]])
-                self.responded_requests.append(request[0])
+
+        # choose pickups
+        for region_code in range(MAP_DIVIDE ** 2):
+            if not pickup_list[region_code] or not open_requests_info_in_area[region_code]:
+                continue
+            dist_table = [[0 for _ in range(len(pickup_list[region_code]))] for __ in range(len(open_requests_info_in_area[region_code]))]  # Req x Vehicle
+            for vehicle_label in range(len(pickup_list[region_code])):
+                for request_label in range(len(open_requests_info_in_area[region_code])):
+                    dist_table[request_label][vehicle_label] = self.fleet[vehicle_label].get_distance_to(
+                        open_requests_info_in_area[region_code][request_label][1][0],
+                        open_requests_info_in_area[region_code][request_label][1][1])
+
+
+
+        # for request in open_requests:
+        #     vehicles_to_request_distance = [1e8 for i in range(NUMBER_OF_VEHICLES)]
+        #     for i in range(NUMBER_OF_VEHICLES):
+        #         if self.fleet[i].status == STAY or self.fleet[i].status == REBALANCE:
+        #             vehicles_to_request_distance[i] = self.fleet[i].get_distance_to(request[1][0], request[1][1])
+        #     choose_car = arg_min(vehicles_to_request_distance)
+        #     if vehicles_to_request_distance[choose_car] > 1e7:  # if no car available
+        #         pass
+        #     else:
+        #         pickup.append([choose_car, request[0]])
+        #         self.responded_requests.append(request[0])
 
         # Calculate the reward --> KEY!
         reward = self.reward_compute(state, next_state)
@@ -130,7 +170,7 @@ class DispatchingLogic:
 
         return [pickup, rebalance]
 
-    def data_processing(self, status):
+    def data_preprocess(self, status):
         # This function processes the data so that we can use it for further learning
         # Expected to do: Grid, # of requests within the grid, Poisson Distribution with parameter lambda, ...
 
@@ -138,18 +178,24 @@ class DispatchingLogic:
 
         # coordination change and update vehicle information
         num_vehicles_in_area = [0 for _ in range(MAP_DIVIDE ** 2)]
+        vehicles_in_each_area = [[]] * (NUMBER_OF_VEHICLES**2)
         distance_to_each_area = [[0. for _ in range(MAP_DIVIDE ** 2)] for __ in range(NUMBER_OF_VEHICLES)]
         vehicles_should_get_rewards = []
+        vehicles_should_update = [False] * NUMBER_OF_VEHICLES
+
+        vehicle_last_state = []  # should save in this order:
+        # status, location, rebalance to, rebalance start time, pickup start time, get pickup at rebalance, last stay time
 
         for i in range(NUMBER_OF_VEHICLES):
             loc = self.coordinate_change('TO_MODEL', status[1][i][1])
             status = status[1][i][2]  # this status has the type RoboTaxiStatus.XXX
-            should_get_reward = self.should_give_reward(self.fleet[i], vehicle_status_converter(status, 'TO_MODEL'))
-            if should_get_reward:
-                vehicles_should_get_rewards.append([i, self.fleet[i].status])
+            vehicle_last_state.append(
+                [self.fleet[i].status, self.fleet[i].loc, self.fleet[i].rebalanceTo, self.fleet[i].rebalanceStartTime,
+                 self.fleet[i].pickupStartTime, self.fleet[i].getPickupAtRebalance, self.fleet[i].lastStayTime])
             self.fleet[i].update(loc, status, self.time)
             if self.fleet[i].status is STAY or self.fleet[i].status is REBALANCE:
                 num_vehicles_in_area[self.fleet[i].area] += 1
+                vehicles_in_each_area[self.fleet[i].area].append(i)
             for j in range(MAP_DIVIDE ** 2):
                 distance_to_each_area[i][j] = self.fleet[i].get_distance_to(MID_POINTS[j])
 
@@ -158,25 +204,28 @@ class DispatchingLogic:
         open_requests = []  # this saves open requests' labels & ori. position
         # add
         for request in status[2]:
-            if request[0] < self.numRequest:
+            this_location = self.coordinate_change('TO_MODEL', request[2])
+            if request[0] < self.numRequestSeen:
                 flag = False
                 for responded in self.responded_requests:
                     if request[0] == responded:
                         flag = True
                         break
                 if not flag:
-                    open_requests.append([request[0], request[2]])
+                    open_requests.append([request[0], this_location])
                 pass
             else:
-                self.history_requests.append([request[1], which_area(request[ 2][0], request[2][1])])
-                self.numRequest = request[0]
-                open_requests.append([request[0], request[2]])
+                self.history_requests.append([request[1], which_area(this_location), this_location])  # time, area, location
+                self.numRequestSeen = request[0]
+                open_requests.append([request[0], this_location])
 
         # Here put requests into areas: open_requests_in_area
         open_requests_in_area = [0 for _ in range(MAP_DIVIDE ** 2)]
+        open_requests_info_in_area = [[]] * (MAP_DIVIDE ** 2)
         for req in open_requests:
             my_area = which_area(req[1][0], req[1][1])
             open_requests_in_area[my_area] += 1
+            open_requests_info_in_area[my_area].append(req)
 
         while self.history_requests[0][0] < self.time - self.keep_history_time:
             self.history_requests.pop(0)
@@ -186,15 +235,55 @@ class DispatchingLogic:
         for his_request in self.history_requests:
             request_distribution[his_request[1]] += 1
 
-        # update s', r
-        for i in range(NUMBER_OF_VEHICLES):
-            if self.fleet[i].flagStateChange == 1:
-                self.fleet[i].data[2] = [] # match the variable state
-                self.fleet[i].data[3] = reward
-                memory.push(*tuple(self.fleet[i].data))
+        # TODO: further process history request for CNN
 
-        # remove ?
-        return num_vehicles_in_area, distance_to_each_area, request_distribution, open_requests
+        # get all vehicles that should update action
+        update_areas = self.areas_to_handle_requests(open_requests_in_area)
+        for i in range(MAP_DIVIDE ** 2):
+            if update_areas[i] == True:
+                for j in range(vehicles_in_each_area[i]):
+                    vehicles_should_update[j] = True
+        for i in range(NUMBER_OF_VEHICLES):
+            if vehicles_should_update[i] == False and self.should_update_individual(self.fleet[i], vehicle_last_state[i]):
+                vehicles_should_update[i] = True
+
+
+        states = []
+        for i in range(NUMBER_OF_VEHICLES):
+            individual_state = [[]] * 5
+            if vehicles_should_update[i]:
+                individual_state[3] = i
+                curr_area = self.fleet[i].area
+                individual_state[4] = curr_area
+                update_area2D = [curr_area / MAP_DIVIDE, curr_area % MAP_DIVIDE] + NINE_REGIONS
+                for area in update_area2D:
+                    if area[0] >= 0 and area[1] >= 0 and area[0] < MAP_DIVIDE and area[1] < MAP_DIVIDE:
+                        individual_state[0].append(open_requests_in_area[area])
+                        individual_state[1].append(request_distribution[area])
+                        individual_state[2].append(num_vehicles_in_area[area])
+                    else:
+                        # -1: Illegal Region
+                        individual_state[0].append(-1)
+                        individual_state[1].append(-1)
+                        individual_state[2].append(-1)
+                states.append(individual_state)
+
+
+
+
+
+
+
+        # # update s', r
+        # for i in range(NUMBER_OF_VEHICLES):
+        #     if self.fleet[i].flagStateChange == 1:
+        #         self.fleet[i].data[2] = [] # match the variable state
+        #         self.fleet[i].data[3] = reward
+        #         memory.push(*tuple(self.fleet[i].data))
+        #
+        # # remove ?
+        # return num_vehicles_in_area, distance_to_each_area, request_distribution, open_requests
+        return states, open_requests_info_in_area
 
     def optimize_model(self, GAMMA=0.999):
         # this function trains the model with decay factor GAMMA
@@ -258,22 +347,45 @@ class DispatchingLogic:
 
     def coordinate_change(self, direction, loc):
         if direction == 'TO_MODEL':
-            return [ (loc[0] - self.lngMin) / self.unitLatitude, (loc[1] - self.latMin) / self.unitLatitude]
+            return [ (loc[0] - self.lngMin) / self.unitLongitude, (loc[1] - self.latMin) / self.unitLatitude]
         elif direction == 'TO_COMMAND':
             return [loc[0] * self.unitLongitude + self.lngMin, loc[1] * self.unitLatitude + self.latMin]
         else:
             raise ValueError
 
-    def should_give_reward(self, vehicle, new_state):
-        # this function decides if a reward should be given
-        # input: vehicle and new status for this vehicle
-        # output: bool(True = should give a reward)
+    def areas_to_handle_requests(self, open_requests_in_area):
+        areas = [False for _ in range(NUMBER_OF_VEHICLES ** 2)]
+        for area1D in range(MAP_DIVIDE ** 2):
+            if open_requests_in_area[area1D] > 0:
+                area_code2D = [area1D // MAP_DIVIDE, area1D % MAP_DIVIDE]
+                nine_regions = area_code2D + NINE_REGIONS
+                for area in nine_regions:
+                    if area[0] >= 0 and area[1] >= 0 and area[0] < MAP_DIVIDE and area[1] < MAP_DIVIDE:
+                        areas[area[0] * MAP_DIVIDE + area[1]] = True
+        return areas
 
+    def should_update_individual(self,vehicle, last_state):
         assert isinstance(vehicle, Vehicle)
-        if vehicle.status == REBALANCE and new_state == STAY:  # REBALANCE --> STAY: give deduction
+        if last_state == REBALANCE and vehicle.status == STAY:
             return True
-        if new_state == DRIVEWITHCUSTOMER and vehicle.status != DRIVEWITHCUSTOMER:  # REBALANCE/PICKUP/STAY --> DRIVEWITHCUSTOMER
+        if last_state == DRIVEWITHCUSTOMER and vehicle.status == STAY:
             return True
-
+        if last_state == STAY and vehicle.status == STAY and vehicle.lastStayTime - self.time >= STAY_TIMEOUT:
+            return True
         return False
+
+    def should_get_reward(self, vehicle, last_state):
+        assert isinstance(vehicle, Vehicle)
+        if last_state == STAY and vehicle.status == STAY and vehicle.lastStayTime - self.time >= STAY_TIMEOUT:
+            return True
+        if last_state == REBALANCE and vehicle.status == STAY:
+            return True
+        if last_state == DRIVETOCUSTOMER and vehicle.status == DRIVEWITHCUSTOMER:
+            return True
+        else:
+            return False
+
+
+
+
 

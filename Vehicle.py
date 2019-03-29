@@ -8,7 +8,7 @@ class Vehicle:
         self.loc = [0., 0.]  # [longitude, latitude]
         self.status = STAY
         self.area = 0
-        self.request = 0
+        self.request = 0  # 1 -- has requests
         self.rebalanceTo = 0  # to which area
         self.rebalanceStartTime = 0
         self.rebalanceArrivalTime = 0
