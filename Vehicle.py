@@ -13,6 +13,7 @@ class Vehicle:
         self.rebalanceStartTime = 0
         self.rebalanceArrivalTime = 0
         self.pickupStartTime = 0
+        self.pickupEndTime = 0
         self.getPickupAtRebalance = False
         # self.data = [None]*4 # [s, a, s', r]  # Now changed to last_state(s), action(a)
         self.last_state = None  # update in 'of' (not in pre-process)
@@ -45,14 +46,18 @@ class Vehicle:
         if new_status is RoboTaxiStatus.DRIVETOCUSTOMER:
             self.status = DRIVETOCUSTOMER
         if new_status is RoboTaxiStatus.DRIVEWITHCUSTOMER:
+            if self.status == DRIVETOCUSTOMER:
+                self.pickupEndTime
             self.status = DRIVEWITHCUSTOMER
         if new_status is RoboTaxiStatus.REBALANCEDRIVE:
             self.status = REBALANCE
 
     def update_stay(self, time):
         self.lastStayTime = time
+        self.status = STAY
 
     def update_rebalance(self, time, rebalance_to):
         self.rebalanceTo = rebalance_to
         self.rebalanceStartTime = time
+        self.status = REBALANCE
 

@@ -11,7 +11,7 @@ from Vehicle import Vehicle
 from constant import *
 from generic import *
 from distance_on_unit_sphere import *
-
+import warnings
 
 memory = ReplayMemory(10000)
 Transition = namedtuple('Transition',
@@ -86,16 +86,20 @@ class DispatchingLogic:
 
         # Pre-process the data
         # num_vehicles_in_area, distance_to_each_area, request_distribution, open_requests = self.data_preprocess(status)
-        states, open_requests_info_in_area, vehicles_should_get_rewards= self.data_preprocess(status)
+        states, open_requests_info_in_area, vehicles_should_get_rewards, vehicle_last_state = self.data_preprocess(status)
         # States: [0] open requests in surroundings, [1] history req in surroundings
         #         [2] number vehicles, [3] label which car, [4] which area
 
+        states_as_records = []
+        for i in range(len(states[0])):
+            states_as_records.append([states[0][i], states[1][i], states[2][i], states[3][i], states[4][i]])
+
         # Save the state for later learning (maybe?) and update states
         old_states = [self.fleet[i].last_state for i in range(NUMBER_OF_VEHICLES)]
-        for individual_state in states:
+        for individual_state in states_as_records:
             self.fleet[individual_state[3]] = individual_state
 
-        #TODO: CNN and DQN
+        # TODO: CNN and DQN
         actions = None
         # 'actions' is the list output of DQNs, length of which is the same as that of states
         # Some possible values are defined as follows:
@@ -104,19 +108,24 @@ class DispatchingLogic:
 
         final_command_for_each_vehicle = [-1] * NUMBER_OF_VEHICLES
         pickup_list = [[]] * (MAP_DIVIDE ** 2)
-        for i, individual_state in enumerate(states):
+        for i, individual_state in enumerate(states_as_records):
             cmd = actions[i]
             vehicle_label = individual_state[3]
-            if 1 <= cmd <= 9:  # pick up 1-9
+            if cmd == 0:
+                vehicles_should_get_rewards[vehicle_label] = True
+                final_command_for_each_vehicle[vehicle_label] = cmd
+            elif 1 <= cmd <= 9:  # pick up 1-9
                 goto = convert_area(individual_state[4], cmd-1, '1D', '1D')
                 pickup_list[goto].append(individual_state[3])
-            if cmd > 9:  # rebalance 1-9
+            elif cmd > 9:  # rebalance 1-9
                 goto = convert_area(individual_state[4], cmd - 9 - 1, '1D', '1D')
                 if self.fleet[vehicle_label].rebalanceTo != goto:  # State will change!
                     new_location = None  # TODO: get the new rebalance location (Hui)
-                    rebalance.append([individual_state[3], new_location])
+                    rebalance.append([individual_state[3], self.coordinate_change('TO_COMMAND', new_location)])
                     vehicles_should_get_rewards[vehicle_label] = True
                     final_command_for_each_vehicle[vehicle_label] = cmd
+            else:
+                raise ValueError('Illegal Action')
 
         # choose pickups
         for region_code in range(MAP_DIVIDE ** 2):
@@ -138,8 +147,8 @@ class DispatchingLogic:
         for single_pickup in pickup:
             get_action = -1
             vehicle_label = single_pickup[0]
-            for i in range(len(states)):
-                if states[i][3] == single_pickup[0]:
+            for i in range(len(states_as_records)):
+                if states_as_records[i][3] == single_pickup[0]:
                     get_action = actions[i]
                     break
             if get_action == -1:
@@ -147,20 +156,29 @@ class DispatchingLogic:
             self.fleet[single_pickup[0]].last_action = get_action
             self.fleet[vehicle_label].pickupStartTime = self.time
             self.fleet[vehicle_label].getPickupAtRebalance = (old_states[vehicle_label] == REBALANCE)
+
+            self.responded_requests.append(single_pickup[0])
             
         # Handle all leftover vehicles
         leftover_states = []
         for vehicle_label in range(left_vehicles):
             get_state = None
-            for i in range(len(states)):
-                if states[i][3] == vehicle_label:
-                    get_state = states[i].copy()
+            for i in range(len(states_as_records)):
+                if states_as_records[i][3] == vehicle_label:
+                    get_state = states_as_records[i].copy()
                     break
             if get_state is None:
-                raise ValueError("Internal Error: did not find the state. Ref to Dong")
+                raise ValueError("Internal Error: did not find the state. Ref to Dong.")
             get_state[0] = [0] * 9  # Close all requests around
             leftover_states.append(get_state)
 
+        state_for_dqn_leftover =  [[]] * 5
+        for individual_state in range(leftover_states):
+            state_for_dqn_leftover[0].append(individual_state[0])
+            state_for_dqn_leftover[1].append(individual_state[1])
+            state_for_dqn_leftover[2].append(individual_state[2])
+            state_for_dqn_leftover[3].append(individual_state[3])
+            state_for_dqn_leftover[4].append(individual_state[4])
 
         # TODO: Run CNN & DQN once again for left_over vehicles
         remaining_actions = None
@@ -168,6 +186,9 @@ class DispatchingLogic:
         for i, individual_state in enumerate(leftover_states):
             vehicle_label = individual_state[3]
             cmd = actions[i]
+            if cmd == 0:
+                vehicles_should_get_rewards[vehicle_label] = True
+                final_command_for_each_vehicle[vehicle_label] = cmd
             if 1 <= cmd <= 9:  # pick up 1-9
                 # NO requests any more!
                 # TODO: QUESTION ON HOW TO HANDLE NO REQ BUT CHOOSE PICKUP; Current way: no change on status
@@ -176,29 +197,38 @@ class DispatchingLogic:
                 goto = convert_area(individual_state[4], cmd - 9 - 1, '1D', '1D')
                 if self.fleet[i].rebalanceTo != goto:  # State will change!
                     new_location = None  # TODO: get the new rebalance location
-                    rebalance.append([individual_state[3], new_location])
+                    rebalance.append([individual_state[3], self.coordinate_change('TO_COMMAND', new_location)])
                     vehicles_should_get_rewards[vehicle_label] = True
                     final_command_for_each_vehicle[vehicle_label] = cmd
+            else:
+                raise ValueError('Illegal Action')
 
         # handle rewards & ensemble a piece of record for Replay memory
         all_replay = []
         for i in range(NUMBER_OF_VEHICLES):
             if vehicles_should_get_rewards[i]:
-                r = self.reward_compute(self.fleet[i], old_states[i])
+                r = self.reward_compute(self.fleet[i], vehicle_last_state[i])
                 get_state = None
-                for j in range(len(states)):
-                    if states[j][3] == i:
-                        get_state = states[i].copy()
+                for j in range(len(state_for_dqn_leftover)):
+                    if state_for_dqn_leftover[j][3] == i:
+                        get_state = state_for_dqn_leftover[j].copy()
+                if not get_state:
+                    for j in range(len(states_as_records)):
+                        if states_as_records[j][3] == i:
+                            get_state = states_as_records[j].copy()
+                # should get a get state
+                if not get_state:
+                    warnings.warn('State not found for vehicle %d' % i)
+                    continue
                 record = [self.fleet[i].last_state, self.fleet[i].last_action, r, get_state]
                 all_replay.append(record)
                 # Set Status after getting reward
-                if self.fleet[i].status == STAY:
+                if final_command_for_each_vehicle[i] == 0:  # 0: Action = 0 is STAY
                     self.fleet[i].update_stay(self.time)
-                elif self.fleet[i].status == REBALANCE:
+                elif 10 <= final_command_for_each_vehicle[i] < 19:  # Action = 10 ~ 18 is REBALANCE
                     goto_relative = final_command_for_each_vehicle[i] - 9 - 1
                     to_area = convert_area(self.fleet[i].area,goto_relative,'2D', '1D')
                     self.fleet[i].update_rebalance(self.time, to_area)
-                    
 
         # Push this new status to Replay memory
         # TODO: Adjust the format for Replay memory
@@ -232,11 +262,11 @@ class DispatchingLogic:
                 [self.fleet[i].status, self.fleet[i].loc, self.fleet[i].rebalanceTo, self.fleet[i].rebalanceStartTime,
                  self.fleet[i].pickupStartTime, self.fleet[i].getPickupAtRebalance, self.fleet[i].lastStayTime])
             self.fleet[i].update(loc, status, self.time)
-            if self.fleet[i].status is STAY or self.fleet[i].status is REBALANCE:
+            if self.fleet[i].status == STAY or self.fleet[i].status == REBALANCE:
                 num_vehicles_in_area[self.fleet[i].area] += 1
                 vehicles_in_each_area[self.fleet[i].area].append(i)
             for j in range(MAP_DIVIDE ** 2):
-                distance_to_each_area[i][j] = self.fleet[i].get_distance_to(MID_POINTS[j])
+                distance_to_each_area[i][j] = self.fleet[i].get_distance_to(MID_POINTS[j][0], MID_POINTS[j][1])
 
         # Process Requests
         # Process Request Distribution & open requests
@@ -266,7 +296,7 @@ class DispatchingLogic:
             open_requests_in_area[my_area] += 1
             open_requests_info_in_area[my_area].append(req)
 
-        while self.history_requests[0][0] < self.time - self.keep_history_time:
+        while self.history_requests and self.history_requests[0][0] < self.time - self.keep_history_time:
             self.history_requests.pop(0)
 
         # Update history request on the map
@@ -281,9 +311,8 @@ class DispatchingLogic:
                 for j in range(vehicles_in_each_area[i]):
                     vehicles_should_update[j] = True
         for i in range(NUMBER_OF_VEHICLES):
-            if vehicles_should_update[i] == False and self.should_update_individual(self.fleet[i], vehicle_last_state[i]):
+            if not vehicles_should_update[i] and self.should_update_individual(self.fleet[i], vehicle_last_state[i]):
                 vehicles_should_update[i] = True
-
 
         states = []
         for i in range(NUMBER_OF_VEHICLES):
@@ -292,12 +321,13 @@ class DispatchingLogic:
                 individual_state[3] = i
                 curr_area = self.fleet[i].area
                 individual_state[4] = curr_area
-                update_area2D = [curr_area / MAP_DIVIDE, curr_area % MAP_DIVIDE] + NINE_REGIONS
+                update_area2D = convert_area(curr_area, None, '1D', '2D') + NINE_REGIONS
                 for area in update_area2D:
-                    if area[0] >= 0 and area[1] >= 0 and area[0] < MAP_DIVIDE and area[1] < MAP_DIVIDE:
-                        individual_state[0].append(open_requests_in_area[area])
-                        individual_state[1].append(request_distribution[area])
-                        individual_state[2].append(num_vehicles_in_area[area])
+                    if 0 <= area[0] < MAP_DIVIDE and 0 <= area[1] < MAP_DIVIDE:
+                        area1D = convert_area(area, None,'2D', '1D')
+                        individual_state[0].append(open_requests_in_area[area1D])
+                        individual_state[1].append(request_distribution[area1D])
+                        individual_state[2].append(num_vehicles_in_area[area1D])
                     else:
                         # -1: Illegal Region
                         individual_state[0].append(-1)
@@ -305,11 +335,9 @@ class DispatchingLogic:
                         individual_state[2].append(-1)
                 states.append(individual_state)
 
-
         vehicles_should_get_rewards = [False] * NUMBER_OF_VEHICLES
         for i in range(NUMBER_OF_VEHICLES):
             vehicles_should_get_rewards[i] = self.should_get_reward(self.fleet[i], vehicle_last_state[i])
-
 
         # # update s', r
         # for i in range(NUMBER_OF_VEHICLES):
@@ -320,7 +348,7 @@ class DispatchingLogic:
         #
         # # remove ?
         # return num_vehicles_in_area, distance_to_each_area, request_distribution, open_requests
-        return states, open_requests_info_in_area, vehicles_should_get_rewards
+        return states, open_requests_info_in_area, vehicles_should_get_rewards, vehicle_last_state
 
     def optimize_model(self, GAMMA=0.999):
         # this function trains the model with decay factor GAMMA
@@ -371,7 +399,7 @@ class DispatchingLogic:
         """
         This function computes the reward given the last state and current state
         :param vehicle: the vehicle to get reward. Type: Vehicle
-        :param new_state: a constant representing the state.
+        :param old_state: a constant representing the old state.
         :return: a score in double.
         """
 
@@ -382,9 +410,9 @@ class DispatchingLogic:
         if vehicle.status == DRIVEWITHCUSTOMER and old_state != DRIVEWITHCUSTOMER:
             reward = PICKUP_REWARD
             if vehicle.getPickupAtRebalance:
-                reward += (self.time - vehicle.rebalanceStartTime) * DISTANCE_COST
+                reward += (vehicle.pickupEndTime - vehicle.rebalanceStartTime) * DISTANCE_COST
             else:
-                reward += (self.time - vehicle.pickupStartTime) * DISTANCE_COST
+                reward += (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST
         return reward
 
     def coordinate_change(self, direction, loc):
