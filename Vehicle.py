@@ -14,8 +14,12 @@ class Vehicle:
         self.rebalanceArrivalTime = 0
         self.pickupStartTime = 0
         self.getPickupAtRebalance = False
-        self.data = [None]*4 # [s, a, s', r]
+        # self.data = [None]*4 # [s, a, s', r]  # Now changed to last_state(s), action(a)
+        self.last_state = None  # update in 'of' (not in pre-process)
+        self.last_action = None
+
         self.lastStayTime = 0
+
 
     def get_distance_to(self, x, y):
         return math.sqrt((x - self.loc[0]) ** 2 + (y - self.loc[1]) ** 2)
@@ -44,4 +48,11 @@ class Vehicle:
             self.status = DRIVEWITHCUSTOMER
         if new_status is RoboTaxiStatus.REBALANCEDRIVE:
             self.status = REBALANCE
+
+    def update_stay(self, time):
+        self.lastStayTime = time
+
+    def update_rebalance(self, time, rebalance_to):
+        self.rebalanceTo = rebalance_to
+        self.rebalanceStartTime = time
 

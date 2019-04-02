@@ -49,3 +49,57 @@ def vehicle_status_converter(status, direction):
     else:
         print('illegel direction: should be TO_HOST or TO_MODEL')
         raise ValueError
+
+
+def convert_area(location=None, location_delta=None, input_form='1D', output_form='2D'):
+    """
+    This function convert location(area code) into the other form.
+    :param location: the location to convert, 1D or 2D specified by input_form
+    :param location_delta: the location to add to original location (1 - 9); Use None if no delta term
+    :param input_form: either '1D' or '2D'
+    :param output_form: either '1D' or '2D'
+    :return: the location in the form specified by output_form
+    """
+    if input_form == '1D':
+        assert isinstance(location, int)
+        ori_2d = _convert_1d_to_2d(location)
+        if location_delta is None:
+            location_delta = 4
+        assert 0 <= location_delta < 9
+        new_2d = ori_2d + NINE_REGIONS[location_delta]
+        if output_form == '1D':
+            return _convert_2d_to_1d(new_2d)
+        elif output_form == '2D':
+            return new_2d
+        else:
+            raise ValueError('output_form should be either "1D" or "2D')
+    elif input_form == '2D':
+        assert isinstance(location, list) and isinstance(location[0], int) and isinstance(location[1], int)
+        if location[0] < 0 or location[0] >= MAP_DIVIDE or location[1] < 0 or location[1] >= MAP_DIVIDE:
+            raise ValueError('Location in 2D value error. Should be within 0 and %d' % MAP_DIVIDE)
+        assert 0 <= location_delta < 9
+        new_2d = location + NINE_REGIONS[location_delta]
+        if output_form == '1D':
+            return _convert_2d_to_1d(new_2d)
+        elif output_form == '2D':
+            return new_2d
+        else:
+            raise ValueError('output_form should be either "1D" or "2D')
+
+
+def _convert_1d_to_2d(loc):
+    """
+    This function converts 1D location to 2D
+    :param loc: a location in 1D
+    :return: a list of 2 numbers, [x, y]
+    """
+    return [loc // MAP_DIVIDE, loc % MAP_DIVIDE]
+
+
+def _convert_2d_to_1d(loc):
+    """
+    This function converts 2D location to 1D
+    :param loc: a location in 2D
+    :return: a integer indicating its area code
+    """
+    return loc[0] * MAP_DIVIDE + loc[1]
