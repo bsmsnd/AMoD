@@ -14,8 +14,8 @@ from distance_on_unit_sphere import *
 import warnings
 
 memory = ReplayMemory(10000)
-Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+# Transition = namedtuple('Transition',
+#                         ('state', 'action', 'next_state', 'reward'))
 
 
 class DispatchingLogic:
@@ -50,11 +50,12 @@ class DispatchingLogic:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.last_state = None
-        self.policy_net = DQN(bottomLeft, topRight).to(self.device)
-        self.target_net = DQN(bottomLeft, topRight).to(self.device)
+        self.policy_net = DQN(N_FEATURE, N_ACTION).to(self.device)
+        self.target_net = DQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.optimizer = optim.RMSprop(self.policy_net.parameters())
+        self.steps_done = 0
 
         self.history_requests = []
         self.numRequestSeen = 0
@@ -99,8 +100,11 @@ class DispatchingLogic:
         for individual_state in states_as_records:
             self.fleet[individual_state[3]] = individual_state
 
-        # TODO: CNN and DQN
-        actions = None
+        #TODO: CNN and DQN
+        open_req = torch.tensor(states[0])  # size of batch_size x 9
+        num_veh = torch.tensor(states[2])  # size of batch_size x 9
+        his_req = torch.tensor(states[1]).view(len(states), -1, 3, 3) # size of batch_size x 4 x 3 x 3
+        actions = self.select_action(open_req, num_veh, his_req)
         # 'actions' is the list output of DQNs, length of which is the same as that of states
         # Some possible values are defined as follows:
         # 0: STAY, 1-9: PICKUP at the relative region from topleft to bottomright
@@ -181,7 +185,10 @@ class DispatchingLogic:
             state_for_dqn_leftover[4].append(individual_state[4])
 
         # TODO: Run CNN & DQN once again for left_over vehicles
-        remaining_actions = None
+        open_req_left = torch.tensor(leftover_states[0])  # size of batch_size x 9
+        num_veh_left = torch.tensor(leftover_states[2])  # size of batch_size x 9
+        his_req_left = torch.tensor(leftover_states[1]).view(len(leftover_states), -1, 3, 3)  # size of batch_size x 4 x 3 x 3
+        remaining_actions = self.select_action(open_req_left, num_veh_left, his_req_left)
 
         for i, individual_state in enumerate(leftover_states):
             vehicle_label = individual_state[3]
@@ -204,7 +211,7 @@ class DispatchingLogic:
                 raise ValueError('Illegal Action')
 
         # handle rewards & ensemble a piece of record for Replay memory
-        all_replay = []
+        # all_replay = []
         for i in range(NUMBER_OF_VEHICLES):
             if vehicles_should_get_rewards[i]:
                 r = self.reward_compute(self.fleet[i], vehicle_last_state[i])
@@ -220,8 +227,18 @@ class DispatchingLogic:
                 if not get_state:
                     warnings.warn('State not found for vehicle %d' % i)
                     continue
-                record = [self.fleet[i].last_state, self.fleet[i].last_action, r, get_state]
-                all_replay.append(record)
+                # push the data into the memory
+                open_req_last = torch.tensor(self.fleet[i].last_state[0])
+                num_veh_last = torch.tensor(self.fleet[i].last_state[2])
+                his_req_last = torch.tensor(self.fleet[i].last_state[1]).view(3, 3)
+                open_req_new = torch.tensor(get_state[0])
+                num_veh_new = torch.tensor(get_state[2])
+                his_req_new = torch.tensor(get_state[1])
+                memory.push(open_req_last, num_veh_last, his_req_last, self.fleet[i].last_action, open_req_new,
+                            num_veh_new, his_req_new, r)
+
+                # record = [self.fleet[i].last_state, self.fleet[i].last_action, get_state, r]
+                # all_replay.append(record)
                 # Set Status after getting reward
                 if final_command_for_each_vehicle[i] == 0:  # 0: Action = 0 is STAY
                     self.fleet[i].update_stay(self.time)
@@ -232,7 +249,7 @@ class DispatchingLogic:
 
         # Push this new status to Replay memory
         # TODO: Adjust the format for Replay memory
-        memory.push(all_replay)
+        # memory.push(all_replay)
 
         # Optimize the network
         self.optimize_model()
@@ -455,6 +472,18 @@ class DispatchingLogic:
         else:
             return False
 
+    def select_action(self, open_req, num_veh, his_req):
+        sample = torch.randn(open_req.size(0))
+        eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+                        math.exp(-1. * self.steps_done / EPS_DECAY)
+        self.steps_done += 1  # need to change to global variable
+        mask = sample > eps_threshold
+        with torch.no_grad():
+            actions = self.policy_net(open_req, num_veh, his_req).max(1)[1]
+        actions_greedy = torch.randint_like(actions)
+        actions = (mask * actions + (torch.ones_like(mask) - mask) * actions_greedy).to(self.device)
+        return actions
+        # torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
 
 
 
