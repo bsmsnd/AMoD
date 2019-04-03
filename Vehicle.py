@@ -5,7 +5,7 @@ from generic import *
 
 class Vehicle:
     def __init__(self):
-        self.loc = [0., 0.]  # [longitude, latitude]
+        self.loc = [0., 0.]  # [longitude --> (0,100), latitude --> (0, ?)]
         self.status = STAY
         self.area = 0
         self.request = 0  # 1 -- has requests
