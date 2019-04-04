@@ -379,26 +379,30 @@ class DispatchingLogic:
 
         # Compute a mask of non-final states and concatenate the batch elements
         # (a final state would've been the one after which simulation ended)
-        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=self.device,
-                                      dtype=torch.uint8)
-        non_final_next_states = torch.cat([s for s in batch.next_state
-                                           if s is not None])
-        state_batch = torch.cat(batch.state)
+        # non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=self.device,
+        #                               dtype=torch.uint8)
+        # non_final_next_states = torch.cat([s for s in batch.next_state
+        #                                    if s is not None])
+        open_req_last_batch = torch.cat(batch.open_req_last)
+        num_veh_last_batch = torch.cat(batch.num_veh_last)
+        his_req_last_batch = torch.cat(batch.his_req_last)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
+        open_req_new_batch = torch.cat(batch.open_req_new)
+        num_veh_new_batch = torch.cat(batch.num_veh_new)
+        his_req_new_batch = torch.cat(batch.his_req_new)
 
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
         # columns of actions taken. These are the actions which would've been taken
         # for each batch state according to policy_net
-        state_action_values = self.policy_net(state_batch).gather(1, action_batch)
+        state_action_values = self.policy_net(open_req_last_batch, num_veh_last_batch, his_req_last_batch).gather(1, action_batch)
 
         # Compute V(s_{t+1}) for all next states.
         # Expected values of actions for non_final_next_states are computed based
         # on the "older" target_net; selecting their best reward with max(1)[0].
         # This is merged based on the mask, such that we'll have either the expected
         # state value or 0 in case the state was final.
-        next_state_values = torch.zeros(BATCH_SIZE, device=self.device)
-        next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0].detach()
+        next_state_values = self.target_net(open_req_new_batch, num_veh_new_batch, his_req_new_batch).max(1)[0].detach()
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
