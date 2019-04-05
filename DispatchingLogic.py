@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import random
 from utils.RoboTaxiStatus import RoboTaxiStatus
-from ReplayMemory import ReplayMemory
+from ReplayMemory import *
 from Dqn import DQN
 from collections import namedtuple
 from Vehicle import Vehicle
@@ -60,7 +60,8 @@ class DispatchingLogic:
         self.history_requests = []
         self.numRequestSeen = 0
 
-        self.keep_history_time = 1800
+        self.keep_history_time = 3600
+        self.part_history = 900
         self.time = 0
 
         # Assume that coordination will be converted to distances in miles
@@ -105,6 +106,8 @@ class DispatchingLogic:
         num_veh = torch.tensor(states[2])  # size of batch_size x 9
         his_req = torch.tensor(states[1]).view(len(states), -1, 3, 3) # size of batch_size x 4 x 3 x 3
         actions = self.select_action(open_req, num_veh, his_req)
+
+        bad_pickup_vehicles = []
         # 'actions' is the list output of DQNs, length of which is the same as that of states
         # Some possible values are defined as follows:
         # 0: STAY, 1-9: PICKUP at the relative region from topleft to bottomright
@@ -120,7 +123,10 @@ class DispatchingLogic:
                 final_command_for_each_vehicle[vehicle_label] = cmd
             elif 1 <= cmd <= 9:  # pick up 1-9
                 goto = convert_area(individual_state[4], cmd-1, '1D', '1D')
-                pickup_list[goto].append(individual_state[3])
+                if open_requests_info_in_area[goto]:  # not empty
+                    pickup_list[goto].append(individual_state[3])
+                else:
+                    bad_pickup_vehicles.append(vehicle_label)
             elif cmd > 9:  # rebalance 1-9
                 goto = convert_area(individual_state[4], cmd - 9 - 1, '1D', '1D')
                 if self.fleet[vehicle_label].rebalanceTo != goto:  # State will change!
@@ -199,7 +205,7 @@ class DispatchingLogic:
             if 1 <= cmd <= 9:  # pick up 1-9
                 # NO requests any more!
                 # TODO: QUESTION ON HOW TO HANDLE NO REQ BUT CHOOSE PICKUP; Current way: no change on status
-                pass
+                bad_pickup_vehicles.append(vehicle_label)
             if cmd > 9:  # rebalance 1-9
                 goto = convert_area(individual_state[4], cmd - 9 - 1, '1D', '1D')
                 if self.fleet[i].rebalanceTo != goto:  # State will change!
@@ -209,6 +215,8 @@ class DispatchingLogic:
                     final_command_for_each_vehicle[vehicle_label] = cmd
             else:
                 raise ValueError('Illegal Action')
+
+        # TODO: bad_pickup_vehicles handler
 
         # handle rewards & ensemble a piece of record for Replay memory
         # all_replay = []
@@ -317,14 +325,18 @@ class DispatchingLogic:
             self.history_requests.pop(0)
 
         # Update history request on the map
-        request_distribution = [0 for _ in range(MAP_DIVIDE ** 2)]
+        request_distribution = [[0 for _ in range(MAP_DIVIDE ** 2)]] * 4
+        # TODO: What if self.time < 3600?
+        time_slot = [max(0, self.time - self.keep_history_time / 4), max(0, self.time - 3 * self.keep_history_time / 4),
+                     max(self.time - 2 * self.keep_history_time / 4, 0), max(self.time - self.keep_history_time / 4, 0)]
+        time_flag = 0
         for his_request in self.history_requests:
             request_distribution[his_request[1]] += 1
 
         # get all vehicles that should update action
         update_areas = self.areas_to_handle_requests(open_requests_in_area)
         for i in range(MAP_DIVIDE ** 2):
-            if update_areas[i] == True:
+            if update_areas[i]:
                 for j in range(vehicles_in_each_area[i]):
                     vehicles_should_update[j] = True
         for i in range(NUMBER_OF_VEHICLES):
