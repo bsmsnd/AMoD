@@ -12,6 +12,7 @@ from constant import *
 from generic import *
 from distance_on_unit_sphere import *
 import warnings
+import numpy as np
 
 memory = ReplayMemory(10000)
 # Transition = namedtuple('Transition',
@@ -130,7 +131,11 @@ class DispatchingLogic:
             elif cmd > 9:  # rebalance 1-9
                 goto = convert_area(individual_state[4], cmd - 9 - 1, '1D', '1D')
                 if self.fleet[vehicle_label].rebalanceTo != goto:  # State will change!
-                    new_location = None  # TODO: get the new rebalance location (Hui)
+                    # random location
+                    long_min = GRAPHMAXCOORDINATE / MAP_DIVIDE * (goto % MAP_DIVIDE)
+                    lati_min = LNG_SCALE / MAP_DIVIDE * (goto // MAP_DIVIDE)
+                    new_location = (np.random.uniform(long_min, long_min + GRAPHMAXCOORDINATE / MAP_DIVIDE),
+                                    np.random.uniform(lati_min, lati_min + LNG_SCALE / MAP_DIVIDE))  # TODO: get the new rebalance location
                     rebalance.append([individual_state[3], self.coordinate_change('TO_COMMAND', new_location)])
                     vehicles_should_get_rewards[vehicle_label] = True
                     final_command_for_each_vehicle[vehicle_label] = cmd
@@ -241,7 +246,7 @@ class DispatchingLogic:
                 his_req_last = torch.tensor(self.fleet[i].last_state[1]).view(3, 3)
                 open_req_new = torch.tensor(get_state[0])
                 num_veh_new = torch.tensor(get_state[2])
-                his_req_new = torch.tensor(get_state[1])
+                his_req_new = torch.tensor(get_state[1]).view(3, 3)
                 memory.push(open_req_last, num_veh_last, his_req_last, self.fleet[i].last_action, open_req_new,
                             num_veh_new, his_req_new, r)
 
