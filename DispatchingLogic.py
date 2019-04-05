@@ -247,8 +247,10 @@ class DispatchingLogic:
                 open_req_new = torch.tensor(get_state[0])
                 num_veh_new = torch.tensor(get_state[2])
                 his_req_new = torch.tensor(get_state[1]).view(3, 3)
-                memory.push(open_req_last, num_veh_last, his_req_last, self.fleet[i].last_action, open_req_new,
-                            num_veh_new, his_req_new, r)
+                action = torch.tensor(self.fleet[i].last_action).view(1, 1)
+                reward = torch.tensor(r).view(1, 1)
+                memory.push(open_req_last, num_veh_last, his_req_last, action, open_req_new,
+                            num_veh_new, his_req_new, reward)
 
                 # record = [self.fleet[i].last_state, self.fleet[i].last_action, get_state, r]
                 # all_replay.append(record)
@@ -402,12 +404,12 @@ class DispatchingLogic:
         #                                    if s is not None])
         open_req_last_batch = torch.cat(batch.open_req_last)
         num_veh_last_batch = torch.cat(batch.num_veh_last)
-        his_req_last_batch = torch.cat(batch.his_req_last)
+        his_req_last_batch = torch.stack(batch.his_req_last, 0)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
         open_req_new_batch = torch.cat(batch.open_req_new)
         num_veh_new_batch = torch.cat(batch.num_veh_new)
-        his_req_new_batch = torch.cat(batch.his_req_new)
+        his_req_new_batch = torch.stack(batch.his_req_new, 0)
 
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
         # columns of actions taken. These are the actions which would've been taken
