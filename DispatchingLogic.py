@@ -14,6 +14,8 @@ from distance_on_unit_sphere import *
 import warnings
 import numpy as np
 
+import scipy.optimize as op 
+
 memory = ReplayMemory(10000)
 # Transition = namedtuple('Transition',
 #                         ('state', 'action', 'next_state', 'reward'))
@@ -142,6 +144,7 @@ class DispatchingLogic:
             else:
                 raise ValueError('Illegal Action')
 
+        pickup, left_vehicles, left_requests = [], [], []
         # choose pickups
         for region_code in range(MAP_DIVIDE ** 2):
             if not pickup_list[region_code] or not open_requests_info_in_area[region_code]:
@@ -150,16 +153,28 @@ class DispatchingLogic:
             for i in range(len(pickup_list[region_code])):
                 vehicle_label = pickup_list[region_code][i]
                 for request_label in range(len(open_requests_info_in_area[region_code])):
-                    dist_table[request_label][vehicle_label] = self.fleet[vehicle_label].get_distance_to(
+                    dist_table[request_label][i] = self.fleet[vehicle_label].get_distance_to(
                         open_requests_info_in_area[region_code][request_label][1][0],
                         open_requests_info_in_area[region_code][request_label][1][1])
             # TODO: Use dist_table to choose pickups
-
-
+            if dist_table:
+                # row is request label   col is vehicle label
+                row, col = op.linear_sum_assignment(dist_table)
+                pickup_list.append([open_requests_info_in_area[region_code][row[i]], pickup_list[region_code][col[i]]] for i in len(row))
+                m, n = len(dist_table), len(dist_table[0])
+                if m < n:
+                    # #request is less than #vehicle label
+                    for i in range(n):
+                        if i not in col: 
+                            left_vehicles.append(pickup_list[region_code][i])
+                elif m > n:
+                    for i in range(m):
+                        if i not in row: 
+                            left_requests.append(open_requests_info_in_area[region_code][i])
         # pickups is expected to be in the following form: [ [# vehicle, # req], ... ]
         # left_vehicles obtains the labels of vehicles that are not assigned requests
         # and yet choose pickup for next action.
-        pickup, left_vehicles, left_requests = None, None, None
+        
 
         for single_pickup in pickup:
             get_action = -1
