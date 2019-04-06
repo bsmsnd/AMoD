@@ -66,23 +66,43 @@ def convert_area(location=None, location_delta=None, input_form='1D', output_for
         if location_delta is None:
             location_delta = 4
         assert 0 <= location_delta < 9
-        new_2d = ori_2d + NINE_REGIONS[location_delta]
+        new_2d = [ori_2d[0] + NINE_REGIONS[location_delta][0], ori_2d[1] + NINE_REGIONS[location_delta][1]]
+        bad_point_flag = False
+        if new_2d[0] < 0 or new_2d[0] >= MAP_DIVIDE or new_2d[1] < 0 or new_2d[1] >= MAP_DIVIDE:
+           bad_point_flag = True
         if output_form == '1D':
-            return _convert_2d_to_1d(new_2d)
+            if bad_point_flag:
+                return ILLEGAL_AREA
+            else:
+                return _convert_2d_to_1d(new_2d)
         elif output_form == '2D':
-            return new_2d
+            if bad_point_flag:
+                return [ILLEGAL_AREA,ILLEGAL_AREA]
+            else:
+                return new_2d
         else:
             raise ValueError('output_form should be either "1D" or "2D')
     elif input_form == '2D':
         assert isinstance(location, list) and isinstance(location[0], int) and isinstance(location[1], int)
         if location[0] < 0 or location[0] >= MAP_DIVIDE or location[1] < 0 or location[1] >= MAP_DIVIDE:
             raise ValueError('Location in 2D value error. Should be within 0 and %d' % MAP_DIVIDE)
+        if location_delta is None:
+            location_delta = 4
         assert 0 <= location_delta < 9
-        new_2d = location + NINE_REGIONS[location_delta]
+        new_2d = [location[0] + NINE_REGIONS[location_delta][0], location[1] + NINE_REGIONS[location_delta][1]]
+        bad_point_flag = False
+        if new_2d[0] < 0 or new_2d[0] >= MAP_DIVIDE or new_2d[1] < 0 or new_2d[1] >= MAP_DIVIDE:
+            bad_point_flag = True
         if output_form == '1D':
-            return _convert_2d_to_1d(new_2d)
+            if bad_point_flag:
+                return ILLEGAL_AREA
+            else:
+                return _convert_2d_to_1d(new_2d)
         elif output_form == '2D':
-            return new_2d
+            if bad_point_flag:
+                return [ILLEGAL_AREA,ILLEGAL_AREA]
+            else:
+                return new_2d
         else:
             raise ValueError('output_form should be either "1D" or "2D')
 

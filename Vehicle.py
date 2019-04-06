@@ -28,7 +28,7 @@ class Vehicle:
     def update(self, new_loc, new_status, time):
         self.loc = new_loc
         self.area = which_area(self.loc[0], self.loc[1])
-        self.change_Status(new_status)
+        self.change_Status(new_status, time)
 
     def change_Status(self, new_status, time):
         # TODO: NEED TO RESET SOME PARAMS
