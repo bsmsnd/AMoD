@@ -13,8 +13,7 @@ from generic import *
 from distance_on_unit_sphere import *
 import warnings
 import numpy as np
-
-import scipy.optimize as op 
+import scipy.optimize as op
 
 memory = ReplayMemory(10000)
 # Transition = namedtuple('Transition',
@@ -163,6 +162,7 @@ class DispatchingLogic:
         # left_vehicles obtains the labels of vehicles that are not assigned requests
         # and yet choose pickup for next action.
         pickup, left_vehicles, left_requests = [], [], []
+
         # choose pickups
         for region_code in range(MAP_DIVIDE ** 2):
             if not pickup_list[region_code] or not open_requests_info_in_area[region_code]:
@@ -185,11 +185,11 @@ class DispatchingLogic:
                 if m < n:
                     # #request is less than #vehicle label
                     for i in range(n):
-                        if i not in col: 
+                        if i not in col:
                             left_vehicles.append(pickup_list[region_code][i])
                 elif m > n:
                     for i in range(m):
-                        if i not in row: 
+                        if i not in row:
                             left_requests.append(open_requests_info_in_area[region_code][i])
 
         for single_pickup in pickup:
@@ -304,6 +304,7 @@ class DispatchingLogic:
                     goto_relative = final_command_for_each_vehicle[i] - 9 - 1
                     to_area = convert_area(self.fleet[i].area,goto_relative,'2D', '1D')
                     self.fleet[i].update_rebalance(self.time, to_area)
+
 
         # Push this new status to Replay memory
         # TODO: Adjust the format for Replay memory

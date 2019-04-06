@@ -23,11 +23,11 @@ class DQN(nn.Module):
         self.relu = nn.ReLU()
         self.conv = nn.Sequential(
             # Stage 1
-            nn.Conv2d(4, 8, 2, padding=1),
+            nn.Conv2d(4, 8, 3, padding=1),
             nn.ReLU(),
             # nn.MaxPool2d(2, stride=2),
             # Stage 2
-            nn.Conv2d(8, 16, 2, padding=1),
+            nn.Conv2d(8, 16, 3, padding=1),
             nn.ReLU()
             # nn.MaxPool2d(2, stride=2)
         )
