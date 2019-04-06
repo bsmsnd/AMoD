@@ -147,13 +147,15 @@ class DispatchingLogic:
             if not pickup_list[region_code] or not open_requests_info_in_area[region_code]:
                 continue
             dist_table = [[0 for _ in range(len(pickup_list[region_code]))] for __ in range(len(open_requests_info_in_area[region_code]))]  # Req x Vehicle
-            for vehicle_label in range(len(pickup_list[region_code])):
+            for i in range(len(pickup_list[region_code])):
+                vehicle_label = pickup_list[region_code][i]
                 for request_label in range(len(open_requests_info_in_area[region_code])):
                     dist_table[request_label][vehicle_label] = self.fleet[vehicle_label].get_distance_to(
                         open_requests_info_in_area[region_code][request_label][1][0],
                         open_requests_info_in_area[region_code][request_label][1][1])
+            # TODO: Use dist_table to choose pickups
 
-        # TODO: Use dist_table to choose pickups (Hui)
+
         # pickups is expected to be in the following form: [ [# vehicle, # req], ... ]
         # left_vehicles obtains the labels of vehicles that are not assigned requests
         # and yet choose pickup for next action.
