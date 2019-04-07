@@ -118,11 +118,16 @@ def fleet_update(action):
     global speed
     global req
     global request_wait
+    global num_request
     pickup, rebalance = action[0], action[1]
     delete_dic = {}
     # update vehicle state for pick up
     for pick in pickup:
         vehicle_ID, request_ID = pick[0], pick[1]
+        if vehicle_ID >= NUMBER_OF_VEHICLES:
+            raise ValueError("vehicle_ID exceed NUMBER_OF_VEHICLES", vehicle_ID)
+        if request_ID >= num_request:
+            raise ValueError("request_ID exceed NUMBER_OF_VEHICLES", request_ID)
         fleet[vehicle_ID].pick_up(request_dic[request_ID])
         delete_dic[request_ID] = 1
         request_wait.append(request_ID)
@@ -139,12 +144,18 @@ def fleet_update(action):
     # update vehicle state to rebalance 
     for rebal in rebalance:
         vehicle_ID, destination = rebal[0], rebal[1]
+        if destination[0]<lon[0] or destination[0] > lon[1]:
+            print("HHHH")
+            raise ValueError("lon exceed")
+        if destination[1]<lat[0] or destination[1] > lat[1]:
+            print("HHHH")
+            raise ValueError("lat exceed")
         fleet[vehicle_ID].rebalance(destination)
     
     # generate new motion after 10 seconds basing on the vehicle state
     for i in range(len(fleet)):
         veh = fleet[i]
-        print(veh.status)
+#        print(veh.status)
         if veh.status is RoboTaxiStatus.STAY: 
             continue
         elif (veh.status is RoboTaxiStatus.DRIVETOCUSTOMER or 
@@ -221,7 +232,7 @@ if __name__ == "__main__":
         generate_request()
 #        print(state_vehicle)
         action = dispatch.of([time_p, state_vehicle, req, [0,0,0]])
-#        print(action)
+#        print(action[0])
         fleet_update(action)
         if time_p % plot_period == 0:
             plot()

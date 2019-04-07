@@ -49,8 +49,9 @@ class DispatchingLogic:
         self.matchedReq = set()
         self.matchedTax = set()
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+#        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cpu")
+        
         self.last_state = None
         self.policy_net = DQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net = DQN(N_FEATURE, N_ACTION).to(self.device)
@@ -70,8 +71,8 @@ class DispatchingLogic:
         self.unitLongitude = (self.lngMax - self.lngMin) / GRAPHMAXCOORDINATE
         self.map_width = distance_on_unit_sphere(self.latMin, self.lngMin, self.latMin, self.lngMax)
         self.map_length = distance_on_unit_sphere(self.latMax, self.lngMax, self.latMin, self.lngMax)
-        LNG_SCALE = GRAPHMAXCOORDINATE * self.map_length / self.map_width
-        self.unitLatitude = (self.lngMax - self.lngMin) / LNG_SCALE
+        self.lng_scale = GRAPHMAXCOORDINATE * self.map_length / self.map_width
+        self.unitLatitude = (self.latMax - self.latMin) / self.lng_scale
 
         self.fleet = [Vehicle() for _ in range(NUMBER_OF_VEHICLES)]
 
@@ -146,9 +147,9 @@ class DispatchingLogic:
                     if self.fleet[vehicle_label].rebalanceTo != goto:  # State will change!
                         # random location
                         long_min = GRAPHMAXCOORDINATE / MAP_DIVIDE * (goto % MAP_DIVIDE)
-                        lati_min = LNG_SCALE / MAP_DIVIDE * (goto // MAP_DIVIDE)
+                        lati_min = self.lng_scale / MAP_DIVIDE * (goto // MAP_DIVIDE)
                         new_location = (np.random.uniform(long_min, long_min + GRAPHMAXCOORDINATE / MAP_DIVIDE),
-                                        np.random.uniform(lati_min, lati_min + LNG_SCALE / MAP_DIVIDE))  # TODO: get the new rebalance location
+                                        np.random.uniform(lati_min, lati_min + self.lng_scale / MAP_DIVIDE))  # TODO: get the new rebalance location
                         rebalance.append([individual_state[3], self.coordinate_change('TO_COMMAND', new_location)])
                         if self.fleet[vehicle_label].last_action is None:
                             pass
@@ -162,7 +163,7 @@ class DispatchingLogic:
         # left_vehicles obtains the labels of vehicles that are not assigned requests
         # and yet choose pickup for next action.
         pickup, left_vehicles, left_requests = [], [], []
-
+        
         # choose pickups
         for region_code in range(MAP_DIVIDE ** 2):
             if not pickup_list[region_code] or not open_requests_info_in_area[region_code]:
@@ -175,12 +176,12 @@ class DispatchingLogic:
                         open_requests_info_in_area[region_code][request_label][1][0],
                         open_requests_info_in_area[region_code][request_label][1][1])
             # TODO: Use dist_table to choose pickups
+            
             if dist_table:
                 # row is request label   col is vehicle label
                 row, col = op.linear_sum_assignment(dist_table)
-                pickup_list.append(
-                    [open_requests_info_in_area[region_code][row[i]], pickup_list[region_code][col[i]]] for i in
-                    range(len(row)))
+                for i in range(len(row)):
+                    pickup.append([pickup_list[region_code][col[i]], open_requests_info_in_area[region_code][row[i]][0]])
                 m, n = len(dist_table), len(dist_table[0])
                 if m < n:
                     # #request is less than #vehicle label
@@ -259,9 +260,9 @@ class DispatchingLogic:
                         if self.fleet[i].rebalanceTo != goto:  # State will change!
                             # random location
                             long_min = GRAPHMAXCOORDINATE / MAP_DIVIDE * (goto % MAP_DIVIDE)
-                            lati_min = LNG_SCALE / MAP_DIVIDE * (goto // MAP_DIVIDE)
+                            lati_min = self.lng_scale / MAP_DIVIDE * (goto // MAP_DIVIDE)
                             new_location = (np.random.uniform(long_min, long_min + GRAPHMAXCOORDINATE / MAP_DIVIDE),
-                                            np.random.uniform(lati_min, lati_min + LNG_SCALE / MAP_DIVIDE))  # TODO: get the new rebalance location
+                                            np.random.uniform(lati_min, lati_min + self.lng_scale / MAP_DIVIDE))  # TODO: get the new rebalance location
                             rebalance.append([individual_state[3], self.coordinate_change('TO_COMMAND', new_location)])
                             if self.fleet[vehicle_label].last_action is None:
                                 pass
@@ -277,11 +278,11 @@ class DispatchingLogic:
         # all_replay = []
         for i in range(NUMBER_OF_VEHICLES):
             if vehicles_should_get_rewards[i]:
-                r = self.reward_compute(self.fleet[i], vehicle_last_state[i])
+                r = self.reward_compute(self.fleet[i], vehicle_last_state[i][0])
                 get_state = None
-                for j in range(len(state_for_dqn_leftover[0])):
-                    if state_for_dqn_leftover[j][3] == i:
-                        get_state = state_for_dqn_leftover[j].copy()
+                for j in range(len(leftover_states)):
+                    if leftover_states[j][3] == i:
+                        get_state = leftover_states[j].copy()
                 if not get_state:
                     for j in range(len(states_as_records)):
                         if states_as_records[j][3] == i:
@@ -298,11 +299,11 @@ class DispatchingLogic:
                 # Set Status after getting reward
                 if final_command_for_each_vehicle[i] == 0:  # 0: Action = 0 is STAY
                     self.fleet[i].update_stay(self.time)
-                elif 1 <= final_command_for_each_vehicle < 10:
+                elif 1 <= final_command_for_each_vehicle[i] < 10:
                     self.fleet[i].last_action = final_command_for_each_vehicle
                 elif 10 <= final_command_for_each_vehicle[i] < 19:  # Action = 10 ~ 18 is REBALANCE
                     goto_relative = final_command_for_each_vehicle[i] - 9 - 1
-                    to_area = convert_area(self.fleet[i].area,goto_relative,'2D', '1D')
+                    to_area = convert_area(self.fleet[i].area, goto_relative,'1D', '1D')
                     self.fleet[i].update_rebalance(self.time, to_area)
 
 
@@ -497,21 +498,28 @@ class DispatchingLogic:
 
         assert isinstance(vehicle, Vehicle)
         reward = None
-        if old_state == REBALANCE and vehicle.status == STAY:  # end of rebalance: give deduction
+        if old_state == REBALANCE and (vehicle.status == STAY or vehicle.status == REBALANCE):  # end of rebalance: give deduction
             reward = (self.time - vehicle.rebalanceStartTime) * DISTANCE_COST
-        if vehicle.status == DRIVEWITHCUSTOMER and old_state != DRIVEWITHCUSTOMER:
+        if vehicle.status == STAY and old_state == DRIVEWITHCUSTOMER:
             reward = PICKUP_REWARD
             if vehicle.getPickupAtRebalance:
                 reward += (vehicle.pickupEndTime - vehicle.rebalanceStartTime) * DISTANCE_COST
             else:
                 reward += (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST
+        if old_state == STAY:
+            reward = 0
+        if reward is None:
+            raise ValueError('reward wrong')
         return reward
 
     def coordinate_change(self, direction, loc):
         if direction == 'TO_MODEL':
             return [ (loc[0] - self.lngMin) / self.unitLongitude, (loc[1] - self.latMin) / self.unitLatitude]
         elif direction == 'TO_COMMAND':
-            return [loc[0] * self.unitLongitude + self.lngMin, loc[1] * self.unitLatitude + self.latMin]
+            converted = [loc[0] * self.unitLongitude + self.lngMin, loc[1] * self.unitLatitude + self.latMin]
+            if (converted[0] < self.lngMin or converted[0] > self.lngMax or converted[1] < self.latMin or converted[1] > self.latMax):
+                raise ValueError
+            return converted
         else:
             raise ValueError
 

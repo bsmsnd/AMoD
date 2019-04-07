@@ -83,7 +83,8 @@ def convert_area(location=None, location_delta=None, input_form='1D', output_for
         else:
             raise ValueError('output_form should be either "1D" or "2D')
     elif input_form == '2D':
-        assert isinstance(location, list) and isinstance(location[0], int) and isinstance(location[1], int)
+        if (not isinstance(location, list)) or (not isinstance(location[0], int)) or (not isinstance(location[1], int)):
+            raise ValueError()
         if location[0] < 0 or location[0] >= MAP_DIVIDE or location[1] < 0 or location[1] >= MAP_DIVIDE:
             raise ValueError('Location in 2D value error. Should be within 0 and %d' % MAP_DIVIDE)
         if location_delta is None:
