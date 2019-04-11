@@ -3,6 +3,7 @@ from utils.RoboTaxiStatus import RoboTaxiStatus
 from constant import *
 from generic import *
 
+
 class Vehicle:
     def __init__(self):
         self.loc = [0., 0.]  # [longitude --> (0,100), latitude --> (0, ?)]
@@ -21,24 +22,16 @@ class Vehicle:
 
         self.lastStayTime = 0
 
-
     def get_distance_to(self, x, y):
         return math.sqrt((x - self.loc[0]) ** 2 + (y - self.loc[1]) ** 2)
 
     def update(self, new_loc, new_status, time):
         self.loc = new_loc
         self.area = which_area(self.loc[0], self.loc[1])
-        self.change_Status(new_status, time)
+        self.change_status(new_status, time)
 
-    def change_Status(self, new_status, time):
-        # TODO: NEED TO RESET SOME PARAMS
-
-        # flag will be 1 if Rebalance -> not Rebalance or STAY ->
-
-        if self.status==REBALANCE and new_status is not RoboTaxiStatus.REBALANCEDRIVE:
-            self.flagStateChange = 1
-        if self.status==STAY:
-            self.flagStateChange = 1
+    def change_status(self, new_status, time):
+        # Reset some parameters as well
         if new_status is RoboTaxiStatus.STAY:
             if self.status is REBALANCE:
                 self.rebalanceArrivalTime = time
@@ -47,7 +40,7 @@ class Vehicle:
             self.status = DRIVETOCUSTOMER
         if new_status is RoboTaxiStatus.DRIVEWITHCUSTOMER:
             if self.status == DRIVETOCUSTOMER:
-                self.pickupEndTime
+                self.pickupEndTime = time
             self.status = DRIVEWITHCUSTOMER
         if new_status is RoboTaxiStatus.REBALANCEDRIVE:
             self.status = REBALANCE
@@ -60,4 +53,3 @@ class Vehicle:
         self.rebalanceTo = rebalance_to
         self.rebalanceStartTime = time
         self.status = REBALANCE
-

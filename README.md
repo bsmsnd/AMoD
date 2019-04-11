@@ -13,7 +13,7 @@ This model is based on Pytorch, and have enabled GPU acceleration if available.
 Using Mini Simulator
 --------------------
 
-We have implemented a mini simulator to allow the evaluate the model in a simple way. Simply run the simulator.py and it will call all necessary modules. Visualization is also enabled in which pentagrams represent requests and circles represent the vehicles. Color will also indicate weather the request has been accepted, or whether the vehicle is available for pickups.
+We have implemented a mini simulator to allow evaluation of the model in a simple way. Simply run the simulator.py and it will call all necessary modules. Visualization is also enabled in which pentagrams represent requests and circles represent the vehicles. Color will also indicate weather the request has been accepted, or whether the vehicle is available for pickups.
 
 Note that the simulator is only for validation, and should not be used for large-scale learning becasuse it has 2 assumptions that are not valid in real traffic: it allows vehicles to move in any direction, and requests are generated randomly. 
  
