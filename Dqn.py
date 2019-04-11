@@ -46,4 +46,18 @@ class DQN(nn.Module):
         return output
 
 
+def saveweight(model, path):
+    # model: the network model
+    # path: the path where the weights save
+    torch.save(model.state_dict(), path)
+
+
+def loadweight(model, path):
+    # model: the new defined network model
+    # path: the path where the weights save
+    model.load_state_dict(torch.load(path))
+    return model
+
+
+
 
