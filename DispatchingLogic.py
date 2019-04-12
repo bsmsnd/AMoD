@@ -211,7 +211,7 @@ class DispatchingLogic:
             self.fleet[vehicle_label].pickupStartTime = self.time
             self.fleet[vehicle_label].getPickupAtRebalance = (old_states[vehicle_label] == REBALANCE)
 
-            self.responded_requests.append(single_pickup[0])
+            self.responded_requests.append(single_pickup[1])
 
         # Handle all leftover vehicles
         leftover_states = []
