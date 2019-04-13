@@ -504,7 +504,7 @@ class DispatchingLogic:
         # Compute Huber loss
         loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
         if self.time%720==0:
-            print(loss)
+            print(loss.item())
 
         # Optimize the model
         self.optimizer.zero_grad()
@@ -593,7 +593,7 @@ class DispatchingLogic:
         eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                         math.exp(-1. * self.steps_done / EPS_DECAY)
         self.steps_done += 1  # need to change to global variable
-        mask = torch.tensor(sample > eps_threshold, dtype=torch.long)
+        mask = (sample > eps_threshold).long()
         with torch.no_grad():
             actions = self.policy_net(open_req, num_veh, his_req).max(1)[1]
         actions_greedy = torch.randint_like(actions, 0, 19)
