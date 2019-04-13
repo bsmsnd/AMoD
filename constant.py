@@ -33,3 +33,7 @@ EPS_DECAY = 200
 
 ILLEGAL_AREA = -1
 R_ILLEGAL = -1000
+SAVE_PERIOD = 3600
+PRE_TRAIN = True
+SAVE_PATH = './weight/dqn_weight.pt'
+LOAD_PATH = './weight/dqn_weight.pt'

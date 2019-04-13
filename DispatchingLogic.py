@@ -5,7 +5,7 @@ import torch.optim as optim
 import random
 from utils.RoboTaxiStatus import RoboTaxiStatus
 from ReplayMemory import *
-from Dqn import DQN
+from Dqn import *
 from collections import namedtuple
 from Vehicle import Vehicle
 from constant import *
@@ -49,10 +49,13 @@ class DispatchingLogic:
         self.matchedReq = set()
         self.matchedTax = set()
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device('cpu')
 
         self.last_state = None
         self.policy_net = DQN(N_FEATURE, N_ACTION).to(self.device)
+        if PRE_TRAIN==True:
+            self.policy_net = loadweight(self.policy_net, LOAD_PATH)
         self.target_net = DQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
@@ -314,7 +317,8 @@ class DispatchingLogic:
 
         # Optimize the network
         self.optimize_model()
-
+        if self.time%SAVE_PERIOD==0:
+            saveweight(self.policy_net, SAVE_PATH)
         return [pickup, rebalance]
 
     def data_preprocess(self, status):
