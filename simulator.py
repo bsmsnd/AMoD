@@ -39,7 +39,7 @@ speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot 
 time_p = 0
-plot_period = 10
+plot_period = 40
 pause_time = 0.01
 
 
@@ -220,6 +220,7 @@ def plot():
     plt.axis([lon[0], lon[1], lat[0], lat[1]])
     plt.pause(pause_time)
     
+
 
 if __name__ == "__main__":       
     dispatch = DispatchingLogic(bottomLeft, topRight)

@@ -89,6 +89,7 @@ class DispatchingLogic:
         # rewards
         self.running_reward = 0
         self.n_rewards = 0
+        self.slid_reward = []
 
     def of(self, status):
         ####################################################################################
@@ -295,11 +296,19 @@ class DispatchingLogic:
         for i in range(NUMBER_OF_VEHICLES):
             if vehicles_should_get_rewards[i]:
                 r = self.reward_compute(self.fleet[i], vehicle_last_state[i][0])
-
+                
                 # Save rewards here
+                self.running_reward = self.running_reward + r
+                self.slid_reward.append(r)
+                if len(self.slid_reward) > SLIDE_WIN_SIZE:
+                    self.running_reward -= self.slid_reward[0]
+                    del self.slid_reward[0]
+                self.n_rewards = len(self.slid_reward)
+                """
                 self.n_rewards = self.n_rewards + 1
                 self.running_reward = self.running_reward + r
-
+                """
+                
                 get_state = None
                 for j in range(len(leftover_states)):
                     if leftover_states[j][3] == i:
