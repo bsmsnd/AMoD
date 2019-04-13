@@ -6,10 +6,10 @@ import math
 import random
 
 BATCH_SIZE = 128
-GAMMA = 0.999
+GAMMA = 0.95
 EPS_START = 0.9
 EPS_END = 0.05
-EPS_DECAY = 200
+EPS_DECAY = 2000
 TARGET_UPDATE = 10
 
 
@@ -17,9 +17,9 @@ class DuelingDQN(nn.Module):
 
     def __init__(self, n_features, n_actions):
         super(DuelingDQN, self).__init__()
-        self.fc1 = nn.Linear(n_features, 64)
-        self.fc2 = nn.Linear(64, 128)
-        self.feature = nn.Linear(128, 256)
+        self.fc1 = nn.Linear(n_features, 128)
+        self.fc2 = nn.Linear(128, 256)
+        self.feature = nn.Linear(256, 512)
         self.relu = nn.ReLU()
         self.conv = nn.Sequential(
             # Stage 1
@@ -33,12 +33,12 @@ class DuelingDQN(nn.Module):
         )
         self.fc4 = nn.Linear(16*3*3, 9)
         self.advantage = nn.Sequential(
-            nn.Linear(256, 256),
+            nn.Linear(512, 256),
             nn.ReLU(),
             nn.Linear(256, n_actions)
         )
         self.value = nn.Sequential(
-            nn.Linear(256, 256),
+            nn.Linear(512, 256),
             nn.ReLU(),
             nn.Linear(256, 1)
         )

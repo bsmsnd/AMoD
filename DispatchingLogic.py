@@ -54,12 +54,12 @@ class DispatchingLogic:
         self.device = torch.device('cpu')
 
         self.last_state = None
-#        self.policy_net = DQN(N_FEATURE, N_ACTION).to(self.device)
-        self.policy_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
+        self.policy_net = DQN(N_FEATURE, N_ACTION).to(self.device)
+#        self.policy_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         if PRE_TRAIN == True:
             self.policy_net = loadweight(self.policy_net, LOAD_PATH)
-#        self.target_net = DQN(N_FEATURE, N_ACTION).to(self.device)
-        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
+        self.target_net = DQN(N_FEATURE, N_ACTION).to(self.device)
+#        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.001)

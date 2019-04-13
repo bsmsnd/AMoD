@@ -5,21 +5,13 @@ from ReplayMemory import *
 import math
 import random
 
-BATCH_SIZE = 128
-GAMMA = 0.999
-EPS_START = 0.9
-EPS_END = 0.05
-EPS_DECAY = 200
-TARGET_UPDATE = 10
-
-
 class DQN(nn.Module):
 
     def __init__(self, n_features, n_actions):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(n_features, 50)
-        self.fc2 = nn.Linear(50, 70)
-        self.fc3 = nn.Linear(70, n_actions)
+        self.fc1 = nn.Linear(n_features, 128)
+        self.fc2 = nn.Linear(128, 256)
+        self.fc3 = nn.Linear(256, n_actions)
         self.relu = nn.ReLU()
         self.conv = nn.Sequential(
             # Stage 1

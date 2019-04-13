@@ -21,7 +21,7 @@ NINE_REGIONS = [[-1, 1], [0, 1], [1, 1], [-1, 0], [0, 0], [1, 0], [-1, -1], [0, 
 
 # Set Hyper-parameters
 PICKUP_REWARD = 100
-DISTANCE_COST = -0.05
+DISTANCE_COST = -0.01
 
 STAY_TIMEOUT = 60
 N_FEATURE = 27
@@ -29,12 +29,15 @@ N_ACTION = 19
 
 EPS_START = 0.9
 EPS_END = 0.05
-EPS_DECAY = 200
+EPS_DECAY = 1500
+BATCH_SIZE = 128
+GAMMA = 0.98
+TARGET_UPDATE = 10
 
 ILLEGAL_AREA = -1
 R_ILLEGAL = -1000
 SAVE_PERIOD = 3600
 PRE_TRAIN = False
-SAVE_PATH = './weight/dqn_dueling_weight.pt'
-LOAD_PATH = './weight/dqn_dueling_weight.pt'
+SAVE_PATH = './weight/dqn_weight.pt'
+LOAD_PATH = './weight/dqn_weight.pt'
 PRINT_REWARD_PERIOD = 120
