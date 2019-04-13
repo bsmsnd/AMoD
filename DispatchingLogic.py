@@ -499,10 +499,10 @@ class DispatchingLogic:
         # state value or 0 in case the state was final.
         next_state_values = self.target_net(open_req_new_batch, num_veh_new_batch, his_req_new_batch).max(1)[0].detach()
         # Compute the expected Q values
-        expected_state_action_values = (next_state_values * GAMMA) + reward_batch
+        expected_state_action_values = (next_state_values.view(-1, 1) * GAMMA) + reward_batch
 
         # Compute Huber loss
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
         if self.time%720==0:
             print("Loss:", loss.item())
 
