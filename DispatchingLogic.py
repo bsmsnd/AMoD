@@ -56,7 +56,7 @@ class DispatchingLogic:
         self.last_state = None
         self.policy_net = DQN(N_FEATURE, N_ACTION).to(self.device)
 #        self.policy_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
-        if PRE_TRAIN == True:
+        if LOAD_FLAG == True:
             self.policy_net = loadweight(self.policy_net, LOAD_PATH)
         self.target_net = DQN(N_FEATURE, N_ACTION).to(self.device)
 #        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
@@ -329,8 +329,9 @@ class DispatchingLogic:
 
         # Optimize the network
         self.optimize_model()
-        if self.time % SAVE_PERIOD == 0:
-            saveweight(self.policy_net, SAVE_PATH)
+        if SAVE_FLAG==True:
+            if self.time % SAVE_PERIOD == 0:
+                saveweight(self.policy_net, SAVE_PATH)
 
         if self.time % PRINT_REWARD_PERIOD == 0:
             if self.n_rewards > 0:

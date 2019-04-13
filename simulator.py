@@ -234,8 +234,8 @@ if __name__ == "__main__":
         action = dispatch.of([time_p, state_vehicle, req, [0,0,0]])
 #        print(action[0])
         fleet_update(action)
-        if time_p % plot_period == 0:
-            plot()
+#        if time_p % plot_period == 0:
+#            plot()
             
         
         
