@@ -42,7 +42,7 @@ def Memory_dataProcess(s, a, s_new, r, memory):
     open_req_new = torch.tensor(s_new[0], dtype=torch.float)
     num_veh_new = torch.tensor(s_new[2], dtype=torch.float)
     his_req_new = torch.tensor(s_new[1], dtype=torch.float).transpose(0, 1).view(-1, 3, 3)
-    action = torch.tensor(a).view(1, 1)
+    action = a.view(1, 1)
     reward = torch.tensor(r, dtype=torch.float).view(1, 1)
     memory.push(open_req_last, num_veh_last, his_req_last, action, open_req_new,
                 num_veh_new, his_req_new, reward)
