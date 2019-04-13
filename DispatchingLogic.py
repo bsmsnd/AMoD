@@ -54,7 +54,7 @@ class DispatchingLogic:
 
         self.last_state = None
         self.policy_net = DQN(N_FEATURE, N_ACTION).to(self.device)
-        if PRE_TRAIN==True:
+        if PRE_TRAIN == True:
             self.policy_net = loadweight(self.policy_net, LOAD_PATH)
         self.target_net = DQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -82,6 +82,10 @@ class DispatchingLogic:
 
         # Requests
         self.responded_requests = []
+
+        # rewards
+        self.running_reward = 0
+        self.n_rewards = 0
 
     def of(self, status):
         ####################################################################################
@@ -288,6 +292,11 @@ class DispatchingLogic:
         for i in range(NUMBER_OF_VEHICLES):
             if vehicles_should_get_rewards[i]:
                 r = self.reward_compute(self.fleet[i], vehicle_last_state[i][0])
+
+                # Save rewards here
+                self.n_rewards = self.n_rewards + 1
+                self.running_reward = self.running_reward + r
+
                 get_state = None
                 for j in range(len(leftover_states)):
                     if leftover_states[j][3] == i:
@@ -317,8 +326,14 @@ class DispatchingLogic:
 
         # Optimize the network
         self.optimize_model()
-        if self.time%SAVE_PERIOD==0:
+        if self.time % SAVE_PERIOD == 0:
             saveweight(self.policy_net, SAVE_PATH)
+
+        if self.time % PRINT_REWARD_PERIOD == 0:
+            if self.n_rewards > 0:
+                print("time %d:  %d rewards with average reward = %.4f" % (self.time, self.n_rewards, self.running_reward / self.n_rewards))
+            else:
+                print("time %d: no rewards so far" % self.time)
         return [pickup, rebalance]
 
     def data_preprocess(self, status):

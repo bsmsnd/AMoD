@@ -37,3 +37,4 @@ SAVE_PERIOD = 3600
 PRE_TRAIN = True
 SAVE_PATH = './weight/dqn_weight.pt'
 LOAD_PATH = './weight/dqn_weight.pt'
+PRINT_REWARD_PERIOD = 120
