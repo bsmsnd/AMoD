@@ -387,7 +387,7 @@ class DispatchingLogic:
         # add
         for request in status[2]:
             this_location = self.coordinate_change('TO_MODEL', request[2])
-            if request[0] < self.numRequestSeen:
+            if request[0] <= self.numRequestSeen:
                 flag = False
                 for responded in self.responded_requests:
                     if request[0] == responded:
