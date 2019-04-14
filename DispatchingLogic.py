@@ -16,7 +16,7 @@ import warnings
 import numpy as np
 import scipy.optimize as op
 
-memory = ReplayMemory(10000)
+memory = ReplayMemory(MEMORY_SIZE)
 # Transition = namedtuple('Transition',
 #                         ('state', 'action', 'next_state', 'reward'))
 
