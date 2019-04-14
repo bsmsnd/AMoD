@@ -189,8 +189,8 @@ def fleet_update(action):
                     veh.status is RoboTaxiStatus.REBALANCEDRIVE):
                     fleet[i].status = RoboTaxiStatus.STAY
                     fleet[i].loc = veh.destination
-#                    if (veh.status is RoboTaxiStatus.DRIVEWITHCUSTOMER):
-#                        fleet[i].requestID = -1
+                    if (veh.status is RoboTaxiStatus.DRIVEWITHCUSTOMER):
+                        fleet[i].requestID = -1
                     continue
                 else:
                     # the state is changing from drivetocustome to drivewithcustome
