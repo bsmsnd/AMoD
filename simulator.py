@@ -156,7 +156,7 @@ def fleet_update(action):
         if request_ID >= num_request:
             raise ValueError("request_ID exceed NUMBER_OF_VEHICLES", request_ID)
         fleet[vehicle_ID].pick_up(request_dic[request_ID])
-        delete_dic[request_ID] = 1
+#        delete_dic[request_ID] = 1
         request_wait.append(request_ID)
     
     
