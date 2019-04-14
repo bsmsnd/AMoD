@@ -156,7 +156,7 @@ def fleet_update(action):
         if request_ID >= num_request:
             raise ValueError("request_ID exceed NUMBER_OF_VEHICLES", request_ID)
         fleet[vehicle_ID].pick_up(request_dic[request_ID])
-#        delete_dic[request_ID] = 1
+        delete_dic[request_ID] = 1
         request_wait.append(request_ID)
     
     
@@ -189,8 +189,8 @@ def fleet_update(action):
                     veh.status is RoboTaxiStatus.REBALANCEDRIVE):
                     fleet[i].status = RoboTaxiStatus.STAY
                     fleet[i].loc = veh.destination
-                    if (veh.status is RoboTaxiStatus.DRIVEWITHCUSTOMER):
-                        fleet[i].requestID = -1
+#                    if (veh.status is RoboTaxiStatus.DRIVEWITHCUSTOMER):
+#                        fleet[i].requestID = -1
                     continue
                 else:
                     # the state is changing from drivetocustome to drivewithcustome
@@ -284,8 +284,9 @@ if __name__ == "__main__":
     plt.ion()
     if flag_plot_enable:
         plt.figure(1)
-    file = open(filename, "w")
-    file.close()
+    if flag_save_enable:
+        file = open(filename, "w")
+        file.close()
     while True:
         time_p += 10
         state_vehicle = [[i, fleet[i].loc, fleet[i].state(), 1] for i in range(NUMBER_OF_VEHICLES)]
