@@ -42,9 +42,9 @@ speed_initial = 30 # km/h
 speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot and save 
-flag_plot_enable = False
+flag_plot_enable = True
 flag_save_enable = False
-plot_period = 40
+plot_period = 10
 save_period = 20
 pause_time = 0.01
 curDT = datetime.datetime.now()
@@ -145,7 +145,7 @@ def fleet_update(action):
     global req
     global request_wait
     global num_request
-#    global request_dic
+    global request_dic
     pickup, rebalance = action[0], action[1]
     delete_dic = {}
     # update vehicle state for pick up
@@ -170,6 +170,7 @@ def fleet_update(action):
             print("HHHH")
             raise ValueError("lat exceed")
         fleet[vehicle_ID].rebalance(destination)
+    
     
     # generate new motion after 10 seconds basing on the vehicle state
     for i in range(len(fleet)):
@@ -239,7 +240,7 @@ def plot():
     global pause_time
     plt.clf()
     for i in range(len(req)):
-        plt.plot(req[i][2][0], req[i][2][1], marker='*', markersize=17, color="r")
+        plt.plot(req[i][2][0], req[i][2][1], marker='*', markersize=25, color="r")
     for i in range(len(request_wait)):
         req_temp = request_dic[request_wait[i]][2]
         plt.plot(req_temp[0], req_temp[1], marker='*', markersize=10, color="b")

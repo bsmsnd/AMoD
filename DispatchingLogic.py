@@ -16,7 +16,7 @@ import warnings
 import numpy as np
 import scipy.optimize as op
 
-memory = ReplayMemory(10000)
+memory = ReplayMemory(MEMORY_SIZE)
 # Transition = namedtuple('Transition',
 #                         ('state', 'action', 'next_state', 'reward'))
 
@@ -387,7 +387,7 @@ class DispatchingLogic:
         # add
         for request in status[2]:
             this_location = self.coordinate_change('TO_MODEL', request[2])
-            if request[0] < self.numRequestSeen:
+            if request[0] <= self.numRequestSeen:
                 flag = False
                 for responded in self.responded_requests:
                     if request[0] == responded:
