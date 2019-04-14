@@ -283,8 +283,9 @@ if __name__ == "__main__":
     plt.ion()
     if flag_plot_enable:
         plt.figure(1)
-    file = open(filename, "w")
-    file.close()
+    if flag_save_enable:
+        file = open(filename, "w")
+        file.close()
     while True:
         time_p += 10
         state_vehicle = [[i, fleet[i].loc, fleet[i].state(), 1] for i in range(NUMBER_OF_VEHICLES)]
