@@ -13,9 +13,13 @@ import matplotlib.pyplot as plt
 from utils.RoboTaxiStatus import RoboTaxiStatus
 import sys
 import matplotlib.pyplot as plt
-import time 
+import datetime
+import os
+import json
+import pickle
 
 
+time_p = 0
 # Initialize map
 # map 0.05 degree ~ 5.5km 
 lon = [0.0, 0.1]  # longitude range of the map 
@@ -37,10 +41,18 @@ req = []
 speed_initial = 30 # km/h
 speed = speed_initial/(3600 * 111.3196)
 
-# constant for plot 
-time_p = 0
+# constant for plot and save 
+flag_plot_enable = False
+flag_save_enable = False
 plot_period = 40
+save_period = 20
 pause_time = 0.01
+curDT = datetime.datetime.now()
+
+extend = '.txt'
+filename = str(curDT.year) + '_' + str(curDT.month) + '_' + str(curDT.day)+ '_' 
+filename = filename + str(curDT.hour)+ '_' + str(curDT.minute) + '_' + str(curDT.second)
+filename = os.path.join('log', filename)
 
 
 class vehicle:
@@ -70,7 +82,20 @@ class vehicle:
         
     def state(self): return self.status
 
-fleet = [vehicle() for _ in range(NUMBER_OF_VEHICLES)]    
+fleet = [vehicle() for _ in range(NUMBER_OF_VEHICLES)]   
+
+fleet_save = [[[0,0],'Stay'] for i in range(NUMBER_OF_VEHICLES)]
+
+def RoboToStr(x):
+    if (x.status is RoboTaxiStatus.DRIVETOCUSTOMER):
+        return 'DRIVETOCUSTOMER'
+    elif (x.status is RoboTaxiStatus.DRIVEWITHCUSTOMER):
+        return 'DRIVEWITHCUSTOMER'
+    elif (x.status is RoboTaxiStatus.STAY):
+        return 'STAY'
+    else:
+        return 'REBALANCEDRIVE'
+    
 
 
 def cal_dis(ori, des):
@@ -114,11 +139,13 @@ def fleet_update(action):
     # update: update all the vehicles state and generate new state after 10 second
     # delete open requse which has been resolved 
     #######################################################
-    global fleet
+    global fleet 
+    global fleet_save
     global speed
     global req
     global request_wait
     global num_request
+#    global request_dic
     pickup, rebalance = action[0], action[1]
     delete_dic = {}
     # update vehicle state for pick up
@@ -131,15 +158,7 @@ def fleet_update(action):
         fleet[vehicle_ID].pick_up(request_dic[request_ID])
         delete_dic[request_ID] = 1
         request_wait.append(request_ID)
-    # delete these open request which has been resolved  
-    index = 0
-    while True:
-        if (index >= len(req)): 
-            break
-        if req[index][0] in delete_dic:
-            del req[index]
-            continue
-        index += 1
+    
     
     # update vehicle state to rebalance 
     for rebal in rebalance:
@@ -156,6 +175,7 @@ def fleet_update(action):
     for i in range(len(fleet)):
         veh = fleet[i]
 #        print(veh.status)
+        fleet_save[i] = [veh.loc, RoboToStr(veh)]
         if veh.status is RoboTaxiStatus.STAY: 
             continue
         elif (veh.status is RoboTaxiStatus.DRIVETOCUSTOMER or 
@@ -168,6 +188,8 @@ def fleet_update(action):
                     veh.status is RoboTaxiStatus.REBALANCEDRIVE):
                     fleet[i].status = RoboTaxiStatus.STAY
                     fleet[i].loc = veh.destination
+                    if (veh.status is RoboTaxiStatus.DRIVEWITHCUSTOMER):
+                        fleet[i].requestID = -1
                     continue
                 else:
                     # the state is changing from drivetocustome to drivewithcustome
@@ -176,6 +198,8 @@ def fleet_update(action):
                     fleet[i].status = RoboTaxiStatus.DRIVEWITHCUSTOMER
                     fleet[i].destination = veh.destination_custome
                     request_wait.remove(veh.requestID)
+#                    if (veh.requestID != -1):
+#                        delete_dic[veh.requestID] = 1
             else:
             # there is no state change in the 10 second
                     loc, des = veh.loc, veh.destination
@@ -187,6 +211,18 @@ def fleet_update(action):
         else:
             raise ValueError('Error with vehicle state')
             sys.exit(1)
+    
+    
+    # delete these open request which has been resolved  
+    index = 0
+    while True:
+        if (index >= len(req)): 
+            break
+        if req[index][0] in delete_dic:
+            del req[index]
+            continue
+        index += 1
+        
 
 def plot():
     ###########Generate plot for the system################
@@ -203,7 +239,7 @@ def plot():
     global pause_time
     plt.clf()
     for i in range(len(req)):
-        plt.plot(req[i][2][0], req[i][2][1], marker='*', markersize=15, color="r")
+        plt.plot(req[i][2][0], req[i][2][1], marker='*', markersize=17, color="r")
     for i in range(len(request_wait)):
         req_temp = request_dic[request_wait[i]][2]
         plt.plot(req_temp[0], req_temp[1], marker='*', markersize=10, color="b")
@@ -221,12 +257,34 @@ def plot():
     plt.pause(pause_time)
     
 
-
+def save():
+    ###########Save the information to a text file#############
+    # One txt file contain all the fleet, open-request, responded-request information
+    # Another file contain a dictionary of all the 
+    global time_p
+    global fleet_save
+    global req
+    global request_dic
+    global request_wait
+    global filename
+    global extend
+    temp_data = [fleet_save, req, request_wait]
+    fleet_jason = json.dumps(temp_data)
+    file = open(filename + extend, "a")
+    file.write(fleet_jason+"\n")
+    file.close()
+    with open(filename+ '_fleet_dic' + '.pkl', "wb") as fp:
+        pickle.dump(request_dic, fp, protocol=pickle.HIGHEST_PROTOCOL)
+    
+    
+        
 if __name__ == "__main__":       
     dispatch = DispatchingLogic(bottomLeft, topRight)
     plt.ion()
-    plt.figure(1)
-    
+    if flag_plot_enable:
+        plt.figure(1)
+    file = open(filename, "w")
+    file.close()
     while True:
         time_p += 10
         state_vehicle = [[i, fleet[i].loc, fleet[i].state(), 1] for i in range(NUMBER_OF_VEHICLES)]
@@ -235,8 +293,11 @@ if __name__ == "__main__":
         action = dispatch.of([time_p, state_vehicle, req, [0,0,0]])
 #        print(action[0])
         fleet_update(action)
-#        if time_p % plot_period == 0:
-#            plot()
+        
+        if flag_plot_enable and time_p % plot_period == 0:
+            plot()
+        if flag_save_enable and time_p % save_period == 0:
+            save()
             
         
         
