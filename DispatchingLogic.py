@@ -222,8 +222,7 @@ class DispatchingLogic:
             self.fleet[single_pickup[0]].last_action = get_action
             self.fleet[vehicle_label].pickupStartTime = self.time
             self.fleet[vehicle_label].getPickupAtRebalance = (old_states[vehicle_label] == REBALANCE)
-            if single_pickup[1] in self.responded_requests:
-                a = 1
+
             self.responded_requests.append(single_pickup[1])
 
         # Handle all leftover vehicles
@@ -336,7 +335,7 @@ class DispatchingLogic:
                     self.fleet[i].last_action = final_command_for_each_vehicle
                 elif 10 <= final_command_for_each_vehicle[i] < 19:  # Action = 10 ~ 18 is REBALANCE
                     goto_relative = final_command_for_each_vehicle[i] - 9 - 1
-                    to_area = convert_area(self.fleet[i].area, goto_relative, '1D', '1D')
+                    to_area = convert_area(self.fleet[i].area, goto_relative,'1D', '1D')
                     self.fleet[i].update_rebalance(self.time, to_area)
 
         # Optimize the network
@@ -350,7 +349,6 @@ class DispatchingLogic:
                 print("time %d:  %d rewards with average reward = %.4f" % (self.time, self.n_rewards, self.running_reward / self.n_rewards))
             else:
                 print("time %d: no rewards so far" % self.time)
-
         return [pickup, rebalance]
 
     def data_preprocess(self, status):
@@ -389,9 +387,15 @@ class DispatchingLogic:
         # add
         for request in status[2]:
             this_location = self.coordinate_change('TO_MODEL', request[2])
-            if request[0] <= self.numRequestSeen:
-                if request[0] not in self.responded_requests:
+            if request[0] < self.numRequestSeen:
+                flag = False
+                for responded in self.responded_requests:
+                    if request[0] == responded:
+                        flag = True
+                        break
+                if not flag:
                     open_requests.append([request[0], this_location])
+                pass
             else:
                 self.history_requests.append([request[1], which_area(this_location[0], this_location[1]), this_location])  # time, area, location
                 self.numRequestSeen = request[0]
