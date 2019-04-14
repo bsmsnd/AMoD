@@ -62,7 +62,8 @@ class DispatchingLogic:
 #        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.001)
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.01)
+        #self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
         self.steps_done = 0
 
         self.history_requests = []
@@ -304,6 +305,7 @@ class DispatchingLogic:
                     self.running_reward -= self.slid_reward[0]
                     del self.slid_reward[0]
                 self.n_rewards = len(self.slid_reward)
+                
                 """
                 self.n_rewards = self.n_rewards + 1
                 self.running_reward = self.running_reward + r
@@ -513,8 +515,8 @@ class DispatchingLogic:
 
         # Compute Huber loss
         loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
-        if self.time%720==0:
-            print(loss.item())
+        if self.time % 720 == 0:
+            print("Loss:", loss.item())
 
         # Optimize the model
         self.optimizer.zero_grad()

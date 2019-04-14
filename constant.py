@@ -1,4 +1,4 @@
-BATCH_SIZE = 32  # Some hyper-parameters to adjust!
+#BATCH_SIZE = 32  # Some hyper-parameters to adjust!
 GRAPHMAXCOORDINATE = 100  # This sets the max. coordinate of
 NUMBER_OF_VEHICLES = 20  # Change AidoGuest.py as well!
 MAP_DIVIDE = 5  # Set this value to change the grid of the map N x N
@@ -29,9 +29,9 @@ N_ACTION = 19
 
 EPS_START = 0.9
 EPS_END = 0.05
-EPS_DECAY = 1500
-BATCH_SIZE = 32
-GAMMA = 0.95
+EPS_DECAY = 2000
+BATCH_SIZE = 64
+GAMMA = 0.94
 TARGET_UPDATE = 10
 
 ILLEGAL_AREA = -1
@@ -44,4 +44,4 @@ LOAD_PATH = './weight/dqn_weight.pt'
 PRINT_REWARD_PERIOD = 120
 
 
-SLIDE_WIN_SIZE = 2000
+SLIDE_WIN_SIZE = 5000
