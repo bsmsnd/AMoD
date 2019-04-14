@@ -156,7 +156,7 @@ def fleet_update(action):
         if request_ID >= num_request:
             raise ValueError("request_ID exceed NUMBER_OF_VEHICLES", request_ID)
         fleet[vehicle_ID].pick_up(request_dic[request_ID])
-        delete_dic[request_ID] = 1
+#        delete_dic[request_ID] = 1
         request_wait.append(request_ID)
     
     
@@ -198,8 +198,8 @@ def fleet_update(action):
                     fleet[i].status = RoboTaxiStatus.DRIVEWITHCUSTOMER
                     fleet[i].destination = veh.destination_custome
                     request_wait.remove(veh.requestID)
-#                    if (veh.requestID != -1):
-#                        delete_dic[veh.requestID] = 1
+                    if (veh.requestID != -1):
+                        delete_dic[veh.requestID] = 1
             else:
             # there is no state change in the 10 second
                     loc, des = veh.loc, veh.destination
