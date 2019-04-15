@@ -43,8 +43,8 @@ speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot and save 
 flag_plot_enable = True
-flag_save_enable = False
-plot_period = 10
+flag_save_enable = True
+plot_period = 40
 save_period = 20
 pause_time = 0.01
 curDT = datetime.datetime.now()
