@@ -5,14 +5,6 @@ from ReplayMemory import *
 import math
 import random
 
-BATCH_SIZE = 128
-GAMMA = 0.95
-EPS_START = 0.9
-EPS_END = 0.05
-EPS_DECAY = 2000
-TARGET_UPDATE = 10
-
-
 class DuelingDQN(nn.Module):
 
     def __init__(self, n_features, n_actions):
@@ -25,11 +17,9 @@ class DuelingDQN(nn.Module):
             # Stage 1
             nn.Conv2d(4, 8, 3, padding=1),
             nn.ReLU(),
-            # nn.MaxPool2d(2, stride=2),
             # Stage 2
             nn.Conv2d(8, 16, 3, padding=1),
             nn.ReLU()
-            # nn.MaxPool2d(2, stride=2)
         )
         self.fc4 = nn.Linear(16*3*3, 9)
         self.advantage = nn.Sequential(
@@ -56,7 +46,6 @@ class DuelingDQN(nn.Module):
         out6 = self.relu(self.feature(out5))
         advantage = self.advantage(out6)
         value = self.value(out6)
-        
         return value + advantage - advantage.mean()
 
 
