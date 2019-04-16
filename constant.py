@@ -22,6 +22,7 @@ NINE_REGIONS = [[-1, 1], [0, 1], [1, 1], [-1, 0], [0, 0], [1, 0], [-1, -1], [0, 
 # Set Hyper-parameters
 PICKUP_REWARD = 100
 DISTANCE_COST = -0.03
+NO_PICKUP_PENALTY = -500
 
 STAY_TIMEOUT = 60
 N_FEATURE = 27
