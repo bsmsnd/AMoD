@@ -30,6 +30,8 @@ topRight = [lon[1], lat[1]]
 # Initialize request
 std_num_request = 0.3  # variance for new request per 10 second
 num_request = 0  # count the total number of request   
+loc_house = [[0.2, 0.1], [0.2, 0.1], [0.7, 0.4], [0.8, 0.1]]
+loc_downtown = [0.5, 0.3]
 request_dic = {}  # save all the information about the request
 # all the index of request that have been responsed   
 # but the vehicle is drivingtocustome
@@ -42,7 +44,7 @@ speed_initial = 30 # km/h
 speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot and save 
-flag_plot_enable = True
+flag_plot_enable = False
 flag_save_enable = False
 plot_period = 10
 save_period = 20
@@ -53,6 +55,11 @@ extend = '.txt'
 filename = str(curDT.year) + '_' + str(curDT.month) + '_' + str(curDT.day)+ '_' 
 filename = filename + str(curDT.hour)+ '_' + str(curDT.minute) + '_' + str(curDT.second)
 filename = os.path.join('log', filename)
+
+# average waiting time 
+win_size = 500  # the sliding window size for average waiting time 
+wait_time = []
+wait_time_sum = 0
 
 
 class vehicle:
@@ -119,6 +126,7 @@ def generate_request():
     global request_dic
     global req
     global time_p
+#    time_day = time_p % (24*60*60)
     num_b = abs(int(round(np.random.normal(0,std_num_request))))
     if num_b == 0: return
     for i in range(num_b):
@@ -146,6 +154,9 @@ def fleet_update(action):
     global request_wait
     global num_request
     global request_dic
+    global wait_time
+    global wait_time_sum
+    global win_size
     pickup, rebalance = action[0], action[1]
     delete_dic = {}
     # update vehicle state for pick up
@@ -199,6 +210,13 @@ def fleet_update(action):
                     fleet[i].status = RoboTaxiStatus.DRIVEWITHCUSTOMER
                     fleet[i].destination = veh.destination_custome
                     request_wait.remove(veh.requestID)
+                    wait_time_p = time_p - request_dic[veh.requestID][1]
+                    wait_time.append(wait_time_p)
+                    wait_time_sum += wait_time_p
+                    if (len(wait_time)>win_size):
+                        wait_time_sum -= wait_time[0]
+                        del wait_time[0]
+                        
                     if (veh.requestID != -1):
                         delete_dic[veh.requestID] = 1
             else:
@@ -212,7 +230,6 @@ def fleet_update(action):
         else:
             raise ValueError('Error with vehicle state')
             sys.exit(1)
-    
     
     # delete these open request which has been resolved  
     index = 0
@@ -295,7 +312,8 @@ if __name__ == "__main__":
         action = dispatch.of([time_p, state_vehicle, req, [0,0,0]])
 #        print(action[0])
         fleet_update(action)
-        
+        if time_p % 1800 == 0:
+            print('Total {0} request---- average wait time for {1} request: {2} '.format(len(request_dic), len(wait_time), (wait_time_sum / win_size)))
         if flag_plot_enable and time_p % plot_period == 0:
             plot()
         if flag_save_enable and time_p % save_period == 0:
