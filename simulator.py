@@ -17,6 +17,7 @@ import datetime
 import os
 import json
 import pickle
+import scipy.stats
 
 
 time_p = 0
@@ -28,10 +29,14 @@ bottomLeft = [lon[0], lat[0]]
 topRight = [lon[1], lat[1]]
 
 # Initialize request
-std_num_request = 0.3  # variance for new request per 10 second
+std_num_request = 0.22  # variance for new request per 10 second
 num_request = 0  # count the total number of request   
-loc_house = [[0.2, 0.1], [0.2, 0.1], [0.7, 0.4], [0.8, 0.1]]
-loc_downtown = [0.5, 0.3]
+flag_dist_enable = False
+time_trafic= [9,18]
+var_trafic = [1,1]
+alpha = 1
+loc_house = [[0.02, 0.01], [0.02, 0.04], [0.07, 0.045], [0.08, 0.01]]
+loc_downtown = [[0.05, 0.03]]
 request_dic = {}  # save all the information about the request
 # all the index of request that have been responsed   
 # but the vehicle is drivingtocustome
@@ -44,9 +49,9 @@ speed_initial = 30 # km/h
 speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot and save 
-flag_plot_enable = False
+flag_plot_enable = True
 flag_save_enable = False
-plot_period = 10
+plot_period = 30
 save_period = 20
 pause_time = 0.01
 curDT = datetime.datetime.now()
@@ -114,6 +119,43 @@ def cal_time(ori, des):
     global speed
     return cal_dis(ori, des)/speed
     
+def get_localtion(loc_):
+    global lon
+    global lat
+    index = np.random.randint(len(loc_))
+    lon_current = [loc_[index][0]-0.01, loc_[index][0]+0.01]
+    if (lon_current[0]<lon[0]): lon_current[0] = lon[0]
+    if (lon_current[1]>lon[1]): lon_current[1] = lon[1]
+    
+    lat_current = [loc_[index][1]-0.01, loc_[index][1]+0.01]
+    if (lat_current[0]<lat[0]): lat_current[0] = lat[0]
+    if (lat_current[1]>lat[1]): lat_current[1] = lat[1]
+
+    return lon_current, lat_current
+
+
+
+def generate_request_from_distr(num_distr, loc_1, loc_2):
+    global req
+    global request_dic
+    global num_request
+    global time_p
+    if num_distr == 0: return  
+    for i in range(num_distr):
+        lon_current, lat_current = get_localtion(loc_1)
+        lon_current_dest, lat_current_dest = get_localtion(loc_2)
+        
+        ori_location = [random.uniform(lon_current[0], lon_current[1]),
+                        random.uniform(lat_current[0], lat_current[1])]
+        dest_location = [random.uniform(lon_current_dest[0], lon_current_dest[1]), 
+                         random.uniform(lat_current_dest[0], lat_current_dest[1])]
+        req_time = np.random.uniform(time_p-10, time_p)
+        req_temp = [num_request, req_time, ori_location, dest_location]
+        req.append(req_temp)
+        request_dic[num_request] = req_temp
+        num_request += 1
+    return 
+
 
 def generate_request():
     ############Generate random request#################
@@ -126,17 +168,32 @@ def generate_request():
     global request_dic
     global req
     global time_p
-#    time_day = time_p % (24*60*60)
+    global alpha
+    global time_trafic
+    global var_trafic
+    global loc_house
+    global loc_downtown
+    time_day = time_p % (24*60*60)
+    hour_day = time_day/(60*60)
+    pdf1 = scipy.stats.norm(time_trafic[0], var_trafic[0]).pdf(hour_day)
+    pdf2 = scipy.stats.norm(time_trafic[1], var_trafic[1]).pdf(hour_day)
+    std_distr1 = alpha*pdf1
+    std_distr2 = alpha*pdf2
+    num_distr1 = abs(int(round(np.random.normal(0,std_distr1))))
+    num_distr2 = abs(int(round(np.random.normal(0,std_distr2))))
     num_b = abs(int(round(np.random.normal(0,std_num_request))))
-    if num_b == 0: return
-    for i in range(num_b):
-        ori_location = [random.uniform(lon[0], lon[1]), random.uniform(lat[0], lat[1])]
-        dest_location = [random.uniform(lon[0], lon[1]), random.uniform(lat[0], lat[1])]
-        req_time = np.random.uniform(time_p-10, time_p)
-        req_temp = [num_request, req_time, ori_location, dest_location]
-        req.append(req_temp)
-        request_dic[num_request] = req_temp
-        num_request += 1
+    
+    generate_request_from_distr(num_distr1, loc_house, loc_downtown)
+    generate_request_from_distr(num_distr2, loc_downtown, loc_house)
+    if num_b != 0: 
+      for i in range(num_b):
+          ori_location = [random.uniform(lon[0], lon[1]), random.uniform(lat[0], lat[1])]
+          dest_location = [random.uniform(lon[0], lon[1]), random.uniform(lat[0], lat[1])]
+          req_time = np.random.uniform(time_p-10, time_p)
+          req_temp = [num_request, req_time, ori_location, dest_location]
+          req.append(req_temp)
+          request_dic[num_request] = req_temp
+          num_request += 1
     return
 
 
