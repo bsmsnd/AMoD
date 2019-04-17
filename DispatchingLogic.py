@@ -411,6 +411,8 @@ class DispatchingLogic:
         for i in range(NUMBER_OF_VEHICLES):
             loc = self.coordinate_change('TO_MODEL', status[1][i][1])
             this_status = status[1][i][2]  # this status has the type RoboTaxiStatus.XXX
+            if self.fleet[i].status == DRIVEWITHCUSTOMER and this_status is RoboTaxiStatus.STAY:
+                a = 1
             vehicle_last_state.append(
                 [self.fleet[i].status, self.fleet[i].loc, self.fleet[i].rebalanceTo, self.fleet[i].rebalanceStartTime,
                  self.fleet[i].pickupStartTime, self.fleet[i].getPickupAtRebalance, self.fleet[i].lastStayTime])
