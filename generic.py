@@ -77,7 +77,7 @@ def convert_area(location=None, location_delta=None, input_form='1D', output_for
                 return _convert_2d_to_1d(new_2d)
         elif output_form == '2D':
             if bad_point_flag:
-                return [ILLEGAL_AREA,ILLEGAL_AREA]
+                return [ILLEGAL_AREA, ILLEGAL_AREA]
             else:
                 return new_2d
         else:

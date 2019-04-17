@@ -19,7 +19,8 @@ class Vehicle:
         # self.data = [None]*4 # [s, a, s', r]  # Now changed to last_state(s), action(a)
         self.last_state = None  # update in 'of' (not in pre-process)
         self.last_action = None
-
+        self.penalty_for_not_pickup_for_this_time = 0
+        self.penalty_for_not_pickup_for_next_time = 0
         self.lastStayTime = 0
 
     def get_distance_to(self, x, y):
@@ -47,9 +48,9 @@ class Vehicle:
 
     def update_stay(self, time):
         self.lastStayTime = time
-        self.status = STAY
+        # self.status = STAY
 
     def update_rebalance(self, time, rebalance_to):
         self.rebalanceTo = rebalance_to
         self.rebalanceStartTime = time
-        self.status = REBALANCE
+        # self.status = REBALANCE
