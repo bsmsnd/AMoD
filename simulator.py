@@ -370,7 +370,8 @@ if __name__ == "__main__":
 #        print(action[0])
         fleet_update(action)
         if time_p % 1800 == 0:
-            print('Total {0} request---- average wait time for {1} request: {2} '.format(len(request_dic), len(wait_time), (wait_time_sum / win_size)))
+            print('Total {0} request---- average wait time for {1} request: {2} '.format(len(request_dic), 
+                  len(wait_time), (wait_time_sum / len(wait_time))))
         if flag_plot_enable and time_p % plot_period == 0:
             plot()
         if flag_save_enable and time_p % save_period == 0:
