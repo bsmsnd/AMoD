@@ -53,21 +53,30 @@ class DispatchingLogic:
                 if vehicle[2] is RoboTaxiStatus.STAY:
                     stay_vehicle.append(vehicle)
 
+            # store unmatched (unresponded) requests
+            unmatched_requests = []
+            for request in requests:
+                if request not in self.matchedReq:
+                    unmatched_requests.append(request)
+            
+
             # Calculate distances between requests and vehicles in STAY mode
-            dist_table = [[] for _ in range(len(stay_vehicle)) for _ in range(len(requests))]    # Req * Vehicle
-            for i in range(len(requests)):
+            dist_table = [[] for _ in range(len(stay_vehicle)) for _ in range(len(unmatched_requests))]    # Req * Vehicle
+            for i in range(len(unmatched_requests)):
                 for j in range(len(stay_vehicle)):
-                    request = requests[i]
+                    request = unmatched_requests[i]
                     vehicle = stay_vehicle[j]
                     dist_table[i][j] = self.get_distance(request[2][0], request[2][1], vehicle[1][0], vehicle[1][1])
+
 
             if dist_table:
                 row, col = op.linear_sum_assignment(dist_table)
                 # row: number of request in requests; col: number of vehicle in stay_vehicle
                 for i in range(len(row)):
-                    pickup.append([stay_vehicle[col[i]][0], requests[row[i]][0]])
-                    self.matchedReq.add(requests[row[i][0]])
+                    pickup.append([stay_vehicle[col[i]][0], unmatched_requests[row[i]][0]])
+                    self.matchedReq.add(unmatched_requests[row[i]][0])
                     self.matchedTax.add(stay_vehicle[col[i]][0])
+
 
             '''
             # for each unassigned request, add a taxi in STAY mode
