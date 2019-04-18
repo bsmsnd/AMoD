@@ -56,12 +56,12 @@ class DispatchingLogic:
             # store unmatched (unresponded) requests
             unmatched_requests = []
             for request in requests:
-                if request not in self.matchedReq:
+                if request[0] not in self.matchedReq:
                     unmatched_requests.append(request)
-            
+
 
             # Calculate distances between requests and vehicles in STAY mode
-            dist_table = [[] for _ in range(len(stay_vehicle)) for _ in range(len(unmatched_requests))]    # Req * Vehicle
+            dist_table = [[[] for _ in range(len(stay_vehicle))] for _ in range(len(unmatched_requests))]    # Req * Vehicle
             for i in range(len(unmatched_requests)):
                 for j in range(len(stay_vehicle)):
                     request = unmatched_requests[i]
@@ -93,12 +93,14 @@ class DispatchingLogic:
                         index += 1
             '''
 
+            '''
             # rebalance 1 of the remaining and unmatched STAY taxis
             for roboTaxi in status[1]:
                 if roboTaxi[2] is RoboTaxiStatus.STAY and roboTaxi[0] not in self.matchedTax:
                     rebalanceLocation = self.getRandomRebalanceLocation()
                     rebalance.append([roboTaxi[0], rebalanceLocation])
                     break
+            '''
 
         return [pickup, rebalance]
 
