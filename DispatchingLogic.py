@@ -287,7 +287,7 @@ class DispatchingLogic:
                                 area1D = convert_area(this_region2D, None, '2D', '1D')
                                 for vehicle in vehicles_in_each_region[area1D]:  # type: int
                                     if final_command_for_each_vehicle[vehicle] == 0 or 10 <= final_command_for_each_vehicle[vehicle] <= 18:
-                                            self.fleet[vehicle].penalty_for_not_pickup_for_next_time += NO_PICKUP_PENALTY / self.fleet[vehicle].get_distance_to(this_request_location[0], this_request_location[1])
+                                            self.fleet[vehicle].penalty_for_not_pickup_for_next_time += NO_PICKUP_PENALTY / (self.fleet[vehicle].get_distance_to(this_request_location[0], this_request_location[1]) + EPS)
 
             n_removed = 0
             for i in range(len(states_as_records)):
