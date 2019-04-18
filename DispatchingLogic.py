@@ -52,8 +52,8 @@ class DispatchingLogic:
         self.matchedReq = set()
         self.matchedTax = set()
 
-#        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.device = torch.device('cpu')
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#        self.device = torch.device('cpu')
 
         self.last_state = None
         self.policy_net = DQN(N_FEATURE, N_ACTION).to(self.device)
@@ -144,9 +144,9 @@ class DispatchingLogic:
                 self.fleet[individual_state[3]].last_state = individual_state
 
             # DQN
-            open_req = torch.tensor(states[0], dtype=torch.float)  # size of batch_size x 9
-            num_veh = torch.tensor(states[2], dtype=torch.float)  # size of batch_size x 9
-            his_req = torch.tensor(states[1], dtype=torch.float).transpose(1, 2).view(len(states[0]), -1, 3, 3) # size of batch_size x 4 x 3 x 3
+            open_req = torch.tensor(states[0], dtype=torch.float).to(self.device)  # size of batch_size x 9
+            num_veh = torch.tensor(states[2], dtype=torch.float).to(self.device)  # size of batch_size x 9
+            his_req = torch.tensor(states[1], dtype=torch.float).transpose(1, 2).view(len(states[0]), -1, 3, 3).to(self.device) # size of batch_size x 4 x 3 x 3
             actions = self.select_action(open_req, num_veh, his_req)
 
             # gather vehicle labels in each region
@@ -532,14 +532,14 @@ class DispatchingLogic:
         #                               dtype=torch.uint8)
         # non_final_next_states = torch.cat([s for s in batch.next_state
         #                                    if s is not None])
-        open_req_last_batch = torch.stack(batch.open_req_last, 0)
-        num_veh_last_batch = torch.stack(batch.num_veh_last, 0)
-        his_req_last_batch = torch.stack(batch.his_req_last, 0)
-        action_batch = torch.cat(batch.action)
-        reward_batch = torch.cat(batch.reward)
-        open_req_new_batch = torch.stack(batch.open_req_new, 0)
-        num_veh_new_batch = torch.stack(batch.num_veh_new, 0)
-        his_req_new_batch = torch.stack(batch.his_req_new, 0)
+        open_req_last_batch = torch.stack(batch.open_req_last, 0).to(self.device)
+        num_veh_last_batch = torch.stack(batch.num_veh_last, 0).to(self.device)
+        his_req_last_batch = torch.stack(batch.his_req_last, 0).to(self.device)
+        action_batch = torch.cat(batch.action).to(self.device)
+        reward_batch = torch.cat(batch.reward).to(self.device)
+        open_req_new_batch = torch.stack(batch.open_req_new, 0).to(self.device)
+        num_veh_new_batch = torch.stack(batch.num_veh_new, 0).to(self.device)
+        his_req_new_batch = torch.stack(batch.his_req_new, 0).to(self.device)
 
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
         # columns of actions taken. These are the actions which would've been taken
@@ -652,8 +652,8 @@ class DispatchingLogic:
         self.steps_done += 1  # need to change to global variable
         mask = (sample > eps_threshold).long()
         with torch.no_grad():
-            actions = self.policy_net(open_req, num_veh, his_req).max(1)[1]
+            actions = self.policy_net(open_req, num_veh, his_req).max(1)[1].to('cpu')
         actions_greedy = torch.randint_like(actions, 0, 19)
-        actions = (mask * actions + (torch.ones_like(mask) - mask) * actions_greedy).to(self.device)
+        actions = mask * actions + (torch.ones_like(mask) - mask) * actions_greedy
         return actions
         # torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
