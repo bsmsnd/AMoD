@@ -106,11 +106,6 @@ class DispatchingLogic:
         # pickup: a list of pickup commands [ [# vehicle, # request],...]
         # Rebalance: a list of rebalance commands: [ [# vehicle, rebalance_to], ...]
         ####################################################################################
-
-        # DEBUG!!!!
-        if status[0] % 1000 == 0:
-            print(self.rebalance_stat)
-
         # Output these values:
         pickup = []
         rebalance = []
@@ -197,9 +192,6 @@ class DispatchingLogic:
                         bad_pickup_vehicles.append(vehicle_label)
                 elif cmd > 9:  # rebalance 1-9
                     goto = convert_area(individual_state[4], cmd - 9 - 1, '1D', '1D')
-
-                    # DEBUG!!!
-                    print("Vehicle %d: at area %d choose cmd %d finally go to area %d" % (individual_state[3], individual_state[4], cmd, goto))
                     self.rebalance_stat[cmd - 10] += 1
 
                     vehicles_decided_new_action[i] = True
