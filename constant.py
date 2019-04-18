@@ -3,8 +3,8 @@ GRAPHMAXCOORDINATE = 100  # This sets the max. coordinate of
 NUMBER_OF_VEHICLES = 20  # Change AidoGuest.py as well!
 MAP_DIVIDE = 5  # Set this value to change the grid of the map N x N
 
-global LNG_SCALE
-LNG_SCALE = 100
+global LAT_SCALE
+# LAT_SCALE = 100
 
 # Vehicle Status
 STAY = 0
@@ -13,11 +13,11 @@ DRIVEWITHCUSTOMER = 2
 REBALANCE = 3
 
 
-MID_POINTS = [[GRAPHMAXCOORDINATE / MAP_DIVIDE / 2 + GRAPHMAXCOORDINATE / MAP_DIVIDE * (n % MAP_DIVIDE),
-               LNG_SCALE / MAP_DIVIDE / 2 + LNG_SCALE / MAP_DIVIDE * (n // MAP_DIVIDE)] for n in
-              range(MAP_DIVIDE ** 2)]
+# MID_POINTS = [[GRAPHMAXCOORDINATE / MAP_DIVIDE / 2 + GRAPHMAXCOORDINATE / MAP_DIVIDE * (n % MAP_DIVIDE),
+#                LAT_SCALE / MAP_DIVIDE / 2 + LAT_SCALE / MAP_DIVIDE * (n // MAP_DIVIDE)] for n in
+#               range(MAP_DIVIDE ** 2)]
 
-NINE_REGIONS = [[-1, 1], [0, 1], [1, 1], [-1, 0], [0, 0], [1, 0], [-1, -1], [0, -1], [1, -1]]
+NINE_REGIONS = [[1, -1], [1, 0], [1, 1], [0, -1], [0, 0], [0, 1], [-1, -1], [-1, 0], [-1, 1]]
 
 # Set Hyper-parameters
 PICKUP_REWARD = 100

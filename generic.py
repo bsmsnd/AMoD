@@ -1,12 +1,13 @@
 from constant import *
 from utils.RoboTaxiStatus import RoboTaxiStatus
+import DispatchingLogic
 
 
 def which_area(x, y):
     # this function determines the area for location (x,y)
     # x,y should be coordinates in model.
     lng_area = int(x // (GRAPHMAXCOORDINATE / MAP_DIVIDE))  # 0 - 100
-    lat_area = int(y // (LNG_SCALE / MAP_DIVIDE))  # 0 - scale
+    lat_area = int(y // (DispatchingLogic.LAT_SCALE / MAP_DIVIDE))  # 0 - scale
     return MAP_DIVIDE * lat_area + lng_area
 
 
@@ -55,7 +56,7 @@ def convert_area(location=None, location_delta=None, input_form='1D', output_for
     """
     This function convert location(area code) into the other form.
     :param location: the location to convert, 1D or 2D specified by input_form
-    :param location_delta: the location to add to original location (1 - 9); Use None if no delta term
+    :param location_delta: the location to add to original location (0 - 8); Use None if no delta term
     :param input_form: either '1D' or '2D'
     :param output_form: either '1D' or '2D'
     :return: the location in the form specified by output_form

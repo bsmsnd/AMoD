@@ -12,6 +12,7 @@ from Dqn_dueling import *
 from collections import namedtuple
 from Vehicle import Vehicle
 from constant import *
+import constant
 from generic import *
 from distance_on_unit_sphere import *
 import warnings
@@ -21,7 +22,7 @@ import scipy.optimize as op
 memory = ReplayMemory(MEMORY_SIZE)
 # Transition = namedtuple('Transition',
 #                         ('state', 'action', 'next_state', 'reward'))
-
+LAT_SCALE = 0
 
 class DispatchingLogic:
     """
@@ -79,9 +80,12 @@ class DispatchingLogic:
         self.unitLongitude = (self.lngMax - self.lngMin) / GRAPHMAXCOORDINATE
         self.map_width = distance_on_unit_sphere(self.latMin, self.lngMin, self.latMin, self.lngMax)
         self.map_length = distance_on_unit_sphere(self.latMax, self.lngMax, self.latMin, self.lngMax)
-        global LNG_SCALE
+        global LAT_SCALE
         self.lat_scale = GRAPHMAXCOORDINATE * self.map_length / self.map_width
-        LNG_SCALE = self.lat_scale
+
+        LAT_SCALE = self.lat_scale
+
+        print(LAT_SCALE)
         self.unitLatitude = (self.latMax - self.latMin) / self.lat_scale
 
         self.fleet = [Vehicle() for _ in range(NUMBER_OF_VEHICLES)]
@@ -93,6 +97,7 @@ class DispatchingLogic:
         self.running_reward = 0
         self.n_rewards = 0
         self.slid_reward = []
+        self.rebalance_stat = [0 for _ in range(9)]
 
     def of(self, status):
         ####################################################################################
@@ -101,6 +106,10 @@ class DispatchingLogic:
         # pickup: a list of pickup commands [ [# vehicle, # request],...]
         # Rebalance: a list of rebalance commands: [ [# vehicle, rebalance_to], ...]
         ####################################################################################
+
+        # DEBUG!!!!
+        if status[0] % 1000 == 0:
+            print(self.rebalance_stat)
 
         # Output these values:
         pickup = []
@@ -188,6 +197,11 @@ class DispatchingLogic:
                         bad_pickup_vehicles.append(vehicle_label)
                 elif cmd > 9:  # rebalance 1-9
                     goto = convert_area(individual_state[4], cmd - 9 - 1, '1D', '1D')
+
+                    # DEBUG!!!
+                    print("Vehicle %d: at area %d choose cmd %d finally go to area %d" % (individual_state[3], individual_state[4], cmd, goto))
+                    self.rebalance_stat[cmd - 10] += 1
+
                     vehicles_decided_new_action[i] = True
                     if goto == ILLEGAL_AREA:
                         Memory_dataProcess(individual_state, cmd, individual_state, R_ILLEGAL, memory)
@@ -421,7 +435,8 @@ class DispatchingLogic:
                 num_vehicles_in_area[self.fleet[i].area] += 1
                 vehicles_in_each_area[self.fleet[i].area].append(i)
             for j in range(MAP_DIVIDE ** 2):
-                distance_to_each_area[i][j] = self.fleet[i].get_distance_to(MID_POINTS[j][0], MID_POINTS[j][1])
+                pass
+                # distance_to_each_area[i][j] = self.fleet[i].get_distance_to(MID_POINTS[j][0], MID_POINTS[j][1])
 
         # Process Requests
         # Process Request Distribution & open requests
