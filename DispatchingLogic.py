@@ -287,7 +287,7 @@ class DispatchingLogic:
                                 area1D = convert_area(this_region2D, None, '2D', '1D')
                                 for vehicle in vehicles_in_each_region[area1D]:  # type: int
                                     if final_command_for_each_vehicle[vehicle] == 0 or 10 <= final_command_for_each_vehicle[vehicle] <= 18:
-                                            self.fleet[vehicle].penalty_for_not_pickup_for_next_time += NO_PICKUP_PENALTY / (self.fleet[vehicle].get_distance_to(this_request_location[0], this_request_location[1]) + EPS)
+                                            self.fleet[vehicle].penalty_for_not_pickup_for_next_time += NO_PICKUP_PENALTY / (self.fleet[vehicle].get_distance_to(this_request_location[0], this_request_location[1]) + const_bound)
 
             n_removed = 0
             for i in range(len(states_as_records)):
@@ -417,8 +417,6 @@ class DispatchingLogic:
         for i in range(NUMBER_OF_VEHICLES):
             loc = self.coordinate_change('TO_MODEL', status[1][i][1])
             this_status = status[1][i][2]  # this status has the type RoboTaxiStatus.XXX
-            if self.fleet[i].status == DRIVEWITHCUSTOMER and this_status is RoboTaxiStatus.STAY:
-                a = 1
             vehicle_last_state.append(
                 [self.fleet[i].status, self.fleet[i].loc, self.fleet[i].rebalanceTo, self.fleet[i].rebalanceStartTime,
                  self.fleet[i].pickupStartTime, self.fleet[i].getPickupAtRebalance, self.fleet[i].lastStayTime])
@@ -605,7 +603,18 @@ class DispatchingLogic:
 
     def coordinate_change(self, direction, loc):
         if direction == 'TO_MODEL':
-            assert self.lngMin <= loc[0] <= self.lngMax and self.latMin <= loc[1] <= self.latMax
+            if not (self.lngMin <= loc[0] <= self.lngMax and self.latMin <= loc[1] <= self.latMax):
+                print(direction, loc)
+                warnings.warn('Illegal location! Change to min/max reachable position')
+                # Error handler
+                if loc[0] < self.lngMin:
+                    loc[0] = self.lngMin
+                elif loc[0] > self.lngMax:
+                    loc[0] = self.lngMax
+                if loc[1] < self.latMin:
+                    loc[1] = self.latMin
+                elif loc[1] > self.latMax:
+                    loc[1] = self.latMax
             return [(loc[0] - self.lngMin) / self.unitLongitude, (loc[1] - self.latMin) / self.unitLatitude]
         elif direction == 'TO_COMMAND':
             assert 0 <= loc[0] <= GRAPHMAXCOORDINATE and 0 <= loc[1] <= self.lat_scale
