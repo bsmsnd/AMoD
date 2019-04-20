@@ -9,8 +9,6 @@ from torch.distributions import Categorical
 import matplotlib.pyplot as plt
 
 
-torch.manual_seed(args.seed)
-
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 
 class A2C(nn.Module):
@@ -50,63 +48,7 @@ class A2C(nn.Module):
 # eps = np.finfo(np.float32).eps.item()
 
 
-def a2c_select_action(state):
-    state = torch.from_numpy(state).float()
-    probs, state_value = model(state)
-    m = Categorical(probs)
-    action = m.sample()
-    model.saved_actions.append((SavedAction(m.log_prob(action), state_value)))
-    return action
 
-def a2c_sample_episode():
-    
-    # DON'T KNOW HOW TO DEAL WITH "env"
-    state, ep_reward = env.reset(), 0
-    episode = []
-
-    for t in range(1, 10000):  # Run for a max of 10k steps
-
-        action = select_action(state)
-
-        # Perform action
-        next_state, reward, done, _ = env.step(action.item())
-        model.rewards.append((reward))
-
-        episode.append((state, action, reward))
-        state = next_state
-
-        ep_reward += reward
-
-        if args.render:
-            env.render()
-
-        if done:
-            break
-
-    return episode, ep_reward
-
-def a2c_compute_losses(episode):
-    ####### TODO #######
-    #### Compute the actor and critic losses
-    actor_losses, critic_losses = [], []
-    R = 0
-    saved_actions = model.saved_actions
-    returns = []
-    for r in model.rewards[::-1]:
-        R = r + args.gamma * R
-        returns.insert(0, R)
-    returns = torch.tensor(returns)
-    returns = (returns - returns.mean()) / (returns.std() + eps)
-    for (log_prob, value), R in zip(saved_actions, returns):
-        advantage = R - value.item()
-        actor_losses.append((-log_prob * advantage))
-        critic_losses.append(F.smooth_l1_loss(value, torch.tensor([R])))
-
-    actor_loss = torch.stack(actor_losses).sum()
-    critic_loss = torch.stack(critic_losses).sum()
-    del model.rewards[:]
-    del model.saved_actions[:]
-    return actor_loss, critic_loss
 
 def saveweight(model, path):
     # model: the network model

@@ -6,7 +6,7 @@ Created on Wed Apr  3 13:48:42 2019
 """
 
 from constant import NUMBER_OF_VEHICLES
-from DispatchingLogic import DispatchingLogic 
+from DispatchingLogic_a2c import DispatchingLogic 
 import random
 import numpy as np
 import matplotlib.pyplot as plt
