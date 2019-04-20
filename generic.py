@@ -109,6 +109,7 @@ def convert_area(location=None, location_delta=None, input_form='1D', output_for
             raise ValueError('output_form should be either "1D" or "2D')
 
 
+
 def _convert_1d_to_2d(loc):
     """
     This function converts 1D location to 2D

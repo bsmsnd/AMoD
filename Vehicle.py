@@ -18,6 +18,7 @@ class Vehicle:
         self.getPickupAtRebalance = False
         # self.data = [None]*4 # [s, a, s', r]  # Now changed to last_state(s), action(a)
         self.last_state = None  # update in 'of' (not in pre-process)
+        self.last_state_global = None
         self.last_action = None
         self.penalty_for_not_pickup_for_this_time = 0
         self.penalty_for_not_pickup_for_next_time = 0
