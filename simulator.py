@@ -29,13 +29,14 @@ bottomLeft = [lon[0], lat[0]]
 topRight = [lon[1], lat[1]]
 
 # Initialize request
-std_num_request = 0.22  # variance for new request per 10 second
+std_num_request = 0.18  # variance for new request per 10 second
 num_request = 0  # count the total number of request   
 flag_dist_enable = False
 time_trafic= [9,18]
 var_trafic = [1,1]
 alpha = 1
-loc_house = [[0.02, 0.01], [0.02, 0.04], [0.07, 0.045], [0.08, 0.01]]
+#loc_house = [[0.02, 0.01], [0.02, 0.04], [0.07, 0.045], [0.08, 0.01]]
+loc_house = [[0.02, 0.04], [0.08, 0.01]]
 loc_downtown = [[0.05, 0.03]]
 request_dic = {}  # save all the information about the request
 # all the index of request that have been responsed   
@@ -369,7 +370,7 @@ if __name__ == "__main__":
         action = dispatch.of([time_p, state_vehicle, req, [0,0,0]])
 #        print(action[0])
         fleet_update(action)
-        if time_p % 1800 == 0:
+        if time_p % 1800 == 0 and len(wait_time) != 0:
             print('Total {0} request---- average wait time for {1} request: {2} '.format(len(request_dic), 
                   len(wait_time), (wait_time_sum / len(wait_time))))
         if flag_plot_enable and time_p % plot_period == 0:

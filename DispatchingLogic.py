@@ -65,7 +65,7 @@ class DispatchingLogic:
 #        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.01)
+        self.optimizer = optim.Adam(self.policy_net.parameters(), LEARNING_RATE)
         #self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
         self.steps_done = 0
 
@@ -316,8 +316,8 @@ class DispatchingLogic:
                         which_car = pickup_list[region_code][col[i]]
                         which_request = open_requests_info_in_area[region_code][row[i]][0]
                         pickup_one_step.append([which_car, which_request])
-
-                        final_command_for_each_vehicle[which_car] = actions[vehicle_label_to_element_in_states[which_car]]
+                        go_blue = vehicle_label_to_element_in_states[which_car]
+                        final_command_for_each_vehicle[which_car] = actions[go_blue]
                         # update global stats
                         global_area_code_for_req = self.smallRegionToGlobalRegion[region_code]
                         open_requests_global[global_area_code_for_req] -= 1
@@ -793,7 +793,7 @@ class DispatchingLogic:
         mask = (sample > eps_threshold).long()
         with torch.no_grad():
             actions = self.policy_net(open_req, num_veh, his_req, open_req_global, num_veh_global, his_req_global).max(1)[1].to('cpu')
-        actions_greedy = torch.randint_like(actions, 0, 19)
+        actions_greedy = torch.randint_like(actions, 0, 23)
         actions = mask * actions + (torch.ones_like(mask) - mask) * actions_greedy
         return actions
         # torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
