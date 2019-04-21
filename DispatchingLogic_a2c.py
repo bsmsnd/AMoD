@@ -26,7 +26,7 @@ from a2c import *
 
 
 
-memory = ReplayMemory(MEMORY_SIZE)
+# memory = ReplayMemory(MEMORY_SIZE)
 # Transition = namedtuple('Transition',
 #                         ('state', 'action', 'next_state', 'reward'))
 
@@ -69,8 +69,9 @@ class DispatchingLogic:
  #       self.policy_net = DQN(N_FEATURE, N_ACTION).to(self.device)
         
 #        self.policy_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
+        self.a2c_model = A2C(N_FEATURE, N_ACTION).to(self.device)
         if LOAD_FLAG == True:
-            self.policy_net = loadweight(self.policy_net, LOAD_PATH)
+            self.a2c_model = loadweight(self.a2c_model, LOAD_PATH)
 
         
 #        self.target_net = DQN(N_FEATURE, N_ACTION).to(self.device)
@@ -82,7 +83,6 @@ class DispatchingLogic:
 
         # FOR A2C
         
-        self.a2c_model = A2C(N_FEATURE, N_ACTION).to(self.device)
         self.optimizer = optim.Adam(self.a2c_model.parameters(), lr=1e-4)
         self.eps = np.finfo(np.float32).eps.item()
 
@@ -115,6 +115,16 @@ class DispatchingLogic:
         self.n_rewards = 0
         self.slid_reward = []
 
+        self.smallRegionToGlobalRegion = [0 for _ in range(MAP_DIVIDE ** 2)]
+        for region_code in range(MAP_DIVIDE ** 2):
+            area2D = convert_area(region_code, None, '1D', '2D')
+            global_area_code = 0
+            if area2D[0] // GLOBAL_DIVIDE > 0:
+                global_area_code += 2
+            if area2D[1] // GLOBAL_DIVIDE > 0:
+                global_area_code += 1
+            self.smallRegionToGlobalRegion[region_code] = global_area_code
+
     def of(self, status):
         ####################################################################################
         # This function returns the commands to vehicles given status
@@ -129,9 +139,10 @@ class DispatchingLogic:
 
         # Pre-process the data
         # num_vehicles_in_area, distance_to_each_area, request_distribution, open_requests = self.data_preprocess(status)
-        states, open_requests_info_in_area, vehicles_should_get_rewards, vehicle_last_state = self.data_preprocess(status)
+        states, open_requests_info_in_area, vehicles_should_get_rewards, vehicle_last_state, statistics = self.data_preprocess(status)
         # states: [0] open requests in surroundings, [1] history req in surroundings
         #         [2] number vehicles, [3] label which car, [4] which area
+        open_requests_global, request_distribution_global, num_vehicles_in_area_global = statistics
 
         # states_as_records stores all data in states in pieces of record, each one corresponds to a vehicle
         states_as_records = []  # in the same order of states
@@ -164,11 +175,24 @@ class DispatchingLogic:
             for individual_state in states_as_records:
                 self.fleet[individual_state[3]].last_state = individual_state
 
-            # DQN
+            # A2C
             open_req = torch.tensor(states[0], dtype=torch.float)  # size of batch_size x 9
             num_veh = torch.tensor(states[2], dtype=torch.float)  # size of batch_size x 9
             his_req = torch.tensor(states[1], dtype=torch.float).transpose(1, 2).view(len(states[0]), -1, 3, 3) # size of batch_size x 4 x 3 x 3
-            actions, saved_actions = self.a2c_select_action(open_req, num_veh, his_req)
+            # Add new global state
+            batch_size = open_req.size()[0]
+
+            open_req_global = torch.tensor(open_requests_global, dtype=torch.float).to(self.device) # 4
+            num_veh_global = torch.tensor(num_vehicles_in_area_global, dtype=torch.float).to(self.device)  # size of 4
+            his_req_global = torch.tensor(request_distribution_global, dtype=torch.float).transpose(0, 1).to(self.device)  # size of 4 x 4
+
+            open_req_global = open_req_global.view(1, open_req_global.size()[0])
+            num_veh_global = num_veh_global.view(1, num_veh_global.size()[0])
+            his_req_global = his_req_global.contiguous().view(1, his_req_global.size()[0]*his_req_global.size()[1])
+            open_req_global = torch.ones([batch_size, open_req_global.size()[1]]) * open_req_global
+            num_veh_global = torch.ones([batch_size, num_veh_global.size()[1]]) * num_veh_global
+            his_req_global = torch.ones([batch_size, his_req_global.size()[1]]) * his_req_global
+            actions, saved_actions = self.a2c_select_action(open_req, num_veh, his_req, open_req_global, num_veh_global, his_req_global)
 
             # gather vehicle labels in each region
             vehicles_in_each_region = [[] for _ in range(MAP_DIVIDE ** 2)]
@@ -214,8 +238,9 @@ class DispatchingLogic:
                         self.n_rewards = len(self.slid_reward)
                         a2c_data_process(self.fleet[vehicle_label], R_ILLEGAL, saved_actions[i])
                         bad_pickup_vehicles.append(vehicle_label)
-                elif cmd > 9:  # rebalance 1-9
+                elif 9 < cmd <= 18:  # rebalance 1-9
                     goto = convert_area(individual_state[4], cmd - 9 - 1, '1D', '1D')
+
                     vehicles_decided_new_action[i] = True
                     if goto == ILLEGAL_AREA:
                         #Memory_dataProcess(individual_state, cmd, individual_state, R_ILLEGAL, memory)
@@ -234,6 +259,42 @@ class DispatchingLogic:
                         lati_min = self.lat_scale / MAP_DIVIDE * (goto // MAP_DIVIDE)
                         new_location = (np.random.uniform(long_min, long_min + GRAPHMAXCOORDINATE / MAP_DIVIDE),
                                         np.random.uniform(lati_min, lati_min + self.lat_scale / MAP_DIVIDE))  # TODO: get the new rebalance location
+                        rebalance.append([individual_state[3], self.coordinate_change('TO_COMMAND', new_location)])
+                        if self.fleet[vehicle_label].last_action is None:
+                            pass
+                        else:
+                            vehicles_should_get_rewards[vehicle_label] = True
+                        final_command_for_each_vehicle[vehicle_label] = cmd
+                elif 18 < cmd <= 22:
+                    index = cmd - 9 - 9 - 1
+                    mid_num = MAP_DIVIDE // GLOBAL_DIVIDE
+                    mid_lon = mid_num * GRAPHMAXCOORDINATE / MAP_DIVIDE
+                    mid_lat = mid_num * self.lat_scale / MAP_DIVIDE
+                    if index // GLOBAL_DIVIDE == 0:
+                        sample_lat_min = 0
+                        sample_lat_max = mid_lat
+                    else:
+                        sample_lat_min = mid_lat
+                        sample_lat_max = self.lat_scale
+                    if index % GLOBAL_DIVIDE == 0:
+                        sample_lon_min = 0
+                        sample_lon_max = mid_lon
+                    else:
+                        sample_lon_min = mid_lon
+                        sample_lon_max = GRAPHMAXCOORDINATE
+
+                    vehicles_decided_new_action[i] = True
+                    if False:
+                    #if goto == ILLEGAL_AREA:
+                        pass
+                        #Memory_dataProcess(individual_state, cmd, individual_state, R_ILLEGAL, memory)
+                        #bad_rebalance_vehicles.append(vehicle_label)
+                    else:
+                        # Will sample a rebalance location, even if the rebalance is not changed
+                        # random location
+                        new_location = (np.random.uniform(sample_lon_min, sample_lon_max),
+                                        np.random.uniform(sample_lat_min,
+                                                          sample_lat_max))  # TODO: get the new rebalance location
                         rebalance.append([individual_state[3], self.coordinate_change('TO_COMMAND', new_location)])
                         if self.fleet[vehicle_label].last_action is None:
                             pass
@@ -270,6 +331,11 @@ class DispatchingLogic:
                         which_request = open_requests_info_in_area[region_code][row[i]][0]
                         pickup_one_step.append([which_car, which_request])
                         final_command_for_each_vehicle[which_car] = actions[vehicle_label_to_index_in_states[which_car]]
+                        # update global stats
+                        global_area_code_for_req = self.smallRegionToGlobalRegion[region_code]
+                        open_requests_global[global_area_code_for_req] -= 1
+                        global_area_code_for_vehicle = self.smallRegionToGlobalRegion[self.fleet[which_car].area]
+                        num_vehicles_in_area_global[global_area_code_for_vehicle] -= 1
                         for j in range(len(states[3])):
                             if states[3][j] == which_car:
                                 vehicles_decided_new_action[j] = True
@@ -431,7 +497,7 @@ class DispatchingLogic:
         # self.optimize_model()
         if SAVE_FLAG==True:
             if self.time % SAVE_PERIOD == 0:
-                saveweight(self.policy_net, SAVE_PATH)
+                saveweight(self.a2c_model, SAVE_PATH)
 
 
         if self.time % PRINT_REWARD_PERIOD == 0:
@@ -564,7 +630,28 @@ class DispatchingLogic:
         #
         # # remove ?
         # return num_vehicles_in_area, distance_to_each_area, request_distribution, open_requests
-        return states, open_requests_info_in_area, vehicles_should_get_rewards, vehicle_last_state
+
+        # Stats for [GLOBAL_DIVIDE x GLOBAL_DIVIDE] regions
+        open_requests_global = [0 for _ in range(GLOBAL_DIVIDE ** 2)]
+        request_distribution_global = [[0 for _ in range(4)] for __ in range(GLOBAL_DIVIDE ** 2)]
+        num_vehicles_in_area_global = [0 for _ in range(GLOBAL_DIVIDE ** 2)]
+
+        for region_code in range(MAP_DIVIDE ** 2):
+            global_area_code = self.smallRegionToGlobalRegion[region_code]
+            open_requests_global[global_area_code] += open_requests_in_area[region_code]
+            for i in range(4):
+                request_distribution_global[global_area_code][i] += request_distribution[region_code][i]
+
+            num_vehicles_in_area_global[global_area_code] += num_vehicles_in_area[region_code]
+
+        # Append stats of Global_divide to states
+        open_requests_to_states = []
+        open_requests_global_to_states = []
+        num_vehicles_in_area_global_to_states = []
+
+        statistics = [open_requests_global, request_distribution_global, num_vehicles_in_area_global]
+
+        return states, open_requests_info_in_area, vehicles_should_get_rewards, vehicle_last_state, statistics
 
     def optimize_model(self, saved_actions, rewards):
         # this function trains the model with decay factor GAMMA
@@ -662,7 +749,18 @@ class DispatchingLogic:
 
     def coordinate_change(self, direction, loc):
         if direction == 'TO_MODEL':
-            assert self.lngMin <= loc[0] <= self.lngMax and self.latMin <= loc[1] <= self.latMax
+            if not (self.lngMin <= loc[0] <= self.lngMax and self.latMin <= loc[1] <= self.latMax):
+                print(direction, loc)
+                warnings.warn('Illegal location! Change to min/max reachable position')
+                # Error handler
+                if loc[0] < self.lngMin:
+                    loc[0] = self.lngMin
+                elif loc[0] > self.lngMax:
+                    loc[0] = self.lngMax
+                if loc[1] < self.latMin:
+                    loc[1] = self.latMin
+                elif loc[1] > self.latMax:
+                    loc[1] = self.latMax
             return [(loc[0] - self.lngMin) / self.unitLongitude, (loc[1] - self.latMin) / self.unitLatitude]
         elif direction == 'TO_COMMAND':
             assert 0 <= loc[0] <= GRAPHMAXCOORDINATE and 0 <= loc[1] <= self.lat_scale
@@ -722,10 +820,10 @@ class DispatchingLogic:
         return actions
         # torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
 
-    def a2c_select_action(self, open_req, num_veh, his_req):
+    def a2c_select_action(self, open_req, num_veh, his_req, open_req_global, num_veh_global, his_req_global):
     #state = torch.from_numpy(state).float()
     # SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
-        probs, state_value = self.a2c_model(open_req, num_veh, his_req)
+        probs, state_value = self.a2c_model(open_req, num_veh, his_req, open_req_global, num_veh_global, his_req_global)
         m = Categorical(probs)
         actions = m.sample()
         saved_actions = []

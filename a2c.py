@@ -22,6 +22,7 @@ class A2C(nn.Module):
             nn.ReLU()
         )
         self.fc = nn.Linear(16*3*3, 9)
+        self.fc_global = nn.Linear(4*4, 4)
         self.affine = nn.Linear(n_features, 128)
         self.relu = nn.ReLU()
         self.action_layer = nn.Linear(128, n_actions)
@@ -31,11 +32,27 @@ class A2C(nn.Module):
         self.rewards = []
 
 
-    def forward(self, x, y, z):
-       
+    def forward(self, x, y, z, x_global, y_global, z_global):
+        """
+        :param x: open requests batch_size x 9
+        :param y: available vehicles batch_size x 9
+        :param z: history requests batch_size x 4 x 3 x 3
+        :param x_global: batch_size X 4
+        :param y_global: batch_size X 4
+        :param z_global: batch_size X 4 x 4
+        :return: probs, state_valie
+        """
+
         out1 = self.conv(z)
         out2 = self.fc(out1.view(x.size(0), -1))
-        out3 = torch.cat((x, y, out2), 1)
+        z_global = self.fc_global(z_global.contiguous().view(x.size()[0], -1))
+
+        # concat x, y, z to x_global, y_global and z_global
+        xx = torch.cat((x, x_global), 1)
+        yy = torch.cat((y, y_global), 1)
+        zz = torch.cat((out2, z_global), 1)
+
+        out3 = torch.cat((xx, yy, zz), 1)
 
         out4 = self.relu(self.affine(out3))
         action_scores = self.action_layer(out4)
