@@ -36,9 +36,9 @@ GAMMA = 0.999
 TARGET_UPDATE = 10
 
 ILLEGAL_AREA = -1
-R_ILLEGAL = -1000
+R_ILLEGAL = -500
 SAVE_PERIOD = 3600
-LOAD_FLAG = True
+LOAD_FLAG = False
 SAVE_FLAG = False
 SAVE_PATH = './weight/dqn_weight.pt'
 LOAD_PATH = './weight/dqn_weight.pt'
@@ -47,4 +47,5 @@ MEMORY_SIZE = 5000
 
 SLIDE_WIN_SIZE = 5000
 const_bound = 1
+TRAIN_THRESHOLD = 20
 

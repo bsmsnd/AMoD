@@ -1,13 +1,13 @@
 from constant import *
 from utils.RoboTaxiStatus import RoboTaxiStatus
-import DispatchingLogic
+import DispatchingLogic_a2c
 
 
 def which_area(x, y):
     # this function determines the area for location (x,y)
     # x,y should be coordinates in model.
     lng_area = int(x // (GRAPHMAXCOORDINATE / MAP_DIVIDE))  # 0 - 100
-    lat_area = int(y // (DispatchingLogic.LAT_SCALE / MAP_DIVIDE))  # 0 - scale
+    lat_area = int(y // (DispatchingLogic_a2c.LAT_SCALE / MAP_DIVIDE))  # 0 - scale
     return MAP_DIVIDE * lat_area + lng_area
 
 

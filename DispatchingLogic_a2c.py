@@ -1,5 +1,3 @@
-from typing import List, Any
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -85,7 +83,7 @@ class DispatchingLogic:
         # FOR A2C
         
         self.a2c_model = A2C(N_FEATURE, N_ACTION).to(self.device)
-        self.optimizer = optim.Adam(self.a2c_model.parameters(), lr=3e-2)
+        self.optimizer = optim.Adam(self.a2c_model.parameters(), lr=1e-4)
         self.eps = np.finfo(np.float32).eps.item()
 
         
@@ -102,9 +100,9 @@ class DispatchingLogic:
         self.unitLongitude = (self.lngMax - self.lngMin) / GRAPHMAXCOORDINATE
         self.map_width = distance_on_unit_sphere(self.latMin, self.lngMin, self.latMin, self.lngMax)
         self.map_length = distance_on_unit_sphere(self.latMax, self.lngMax, self.latMin, self.lngMax)
-        global LNG_SCALE
+        global LAT_SCALE
         self.lat_scale = GRAPHMAXCOORDINATE * self.map_length / self.map_width
-        LNG_SCALE = self.lat_scale
+        LAT_SCALE = self.lat_scale
         self.unitLatitude = (self.latMax - self.latMin) / self.lat_scale
 
         self.fleet = [Vehicle() for _ in range(NUMBER_OF_VEHICLES)]
@@ -208,6 +206,12 @@ class DispatchingLogic:
                     else:
                         vehicles_decided_new_action[i] = True  # TODO
                         #Memory_dataProcess(individual_state, cmd, individual_state, R_ILLEGAL, memory)
+                        self.running_reward = self.running_reward + R_ILLEGAL
+                        self.slid_reward.append(R_ILLEGAL)
+                        if len(self.slid_reward) > SLIDE_WIN_SIZE:
+                            self.running_reward -= self.slid_reward[0]
+                            del self.slid_reward[0]
+                        self.n_rewards = len(self.slid_reward)
                         a2c_data_process(self.fleet[vehicle_label], R_ILLEGAL, saved_actions[i])
                         bad_pickup_vehicles.append(vehicle_label)
                 elif cmd > 9:  # rebalance 1-9
@@ -215,6 +219,12 @@ class DispatchingLogic:
                     vehicles_decided_new_action[i] = True
                     if goto == ILLEGAL_AREA:
                         #Memory_dataProcess(individual_state, cmd, individual_state, R_ILLEGAL, memory)
+                        self.running_reward = self.running_reward + R_ILLEGAL
+                        self.slid_reward.append(R_ILLEGAL)
+                        if len(self.slid_reward) > SLIDE_WIN_SIZE:
+                            self.running_reward -= self.slid_reward[0]
+                            del self.slid_reward[0]
+                        self.n_rewards = len(self.slid_reward)
                         a2c_data_process(self.fleet[vehicle_label], R_ILLEGAL, saved_actions[i])
                         bad_rebalance_vehicles.append(vehicle_label)
                     else:
@@ -360,6 +370,10 @@ class DispatchingLogic:
 
             pickup = pickup + pickup_one_step
             # END OF WHILE LOOP
+        # print('bad pickup:')
+        # print(bad_pickup_vehicles)
+        # print('bad rebalance')
+        # print(bad_rebalance_vehicles)
 
         for vehicle_label in range(NUMBER_OF_VEHICLES):
             if vehicles_should_update[vehicle_label]:
@@ -405,8 +419,8 @@ class DispatchingLogic:
                 self.fleet[i].a2c_reward.append(r)
                 # optimize the network
                 if len(self.fleet[i].a2c_reward) >= TRAIN_THRESHOLD:
-                    self.optimize_model(self.fleet[i].a2c_saved_actions, self.fleet[i].a2c_reward)
-                    del self.fleet[i].a2c_saved_actions[:]
+                    self.optimize_model(self.fleet[i].a2c_saved_actions[:len(self.fleet[i].a2c_reward)], self.fleet[i].a2c_reward)
+                    del self.fleet[i].a2c_saved_actions[:len(self.fleet[i].a2c_reward)]
                     del self.fleet[i].a2c_reward[:]
                 # record = [self.fleet[i].last_state, self.fleet[i].last_action, get_state, r]
                 # all_replay.append(record)
@@ -418,6 +432,7 @@ class DispatchingLogic:
         if SAVE_FLAG==True:
             if self.time % SAVE_PERIOD == 0:
                 saveweight(self.policy_net, SAVE_PATH)
+
 
         if self.time % PRINT_REWARD_PERIOD == 0:
             if self.n_rewards > 0:
@@ -455,8 +470,8 @@ class DispatchingLogic:
             if self.fleet[i].status == STAY or self.fleet[i].status == REBALANCE:
                 num_vehicles_in_area[self.fleet[i].area] += 1
                 vehicles_in_each_area[self.fleet[i].area].append(i)
-            for j in range(MAP_DIVIDE ** 2):
-                distance_to_each_area[i][j] = self.fleet[i].get_distance_to(MID_POINTS[j][0], MID_POINTS[j][1])
+            # for j in range(MAP_DIVIDE ** 2):
+            #     distance_to_each_area[i][j] = self.fleet[i].get_distance_to(MID_POINTS[j][0], MID_POINTS[j][1])
 
         # Process Requests
         # Process Request Distribution & open requests
@@ -603,10 +618,11 @@ class DispatchingLogic:
         self.optimizer.zero_grad()
         actor_loss, critic_loss = self.a2c_compute_losses(saved_actions, rewards)
         loss = actor_loss + critic_loss
-        loss.backward()
-        for param in self.policy_net.parameters():
-            param.grad.data.clamp_(-1, 1)
+        loss.backward(retain_graph=True)
+        # for param in self.a2c_model.parameters():
+        #     param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
+        print("Loss:", loss.item())
 
         # Optimize the model
         # self.optimizer.zero_grad()
@@ -714,7 +730,7 @@ class DispatchingLogic:
         actions = m.sample()
         saved_actions = []
         for i in range(actions.size(0)):
-            saved_actions.append(SavedAction(m.log_prob(actions[i]), state_value[i]))
+            saved_actions.append(SavedAction(m.log_prob(actions[i])[i], state_value[i]))
         return actions, saved_actions
 
 
