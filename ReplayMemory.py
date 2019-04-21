@@ -46,9 +46,3 @@ def Memory_dataProcess(s, a, s_new, r, memory):
     reward = torch.tensor(r, dtype=torch.float).view(1, 1)
     memory.push(open_req_last, num_veh_last, his_req_last, action, open_req_new,
                 num_veh_new, his_req_new, reward)
-
-def a2c_data_process(vehicle, R, a2c_saved_actions):
-    # vehicle is class; a2c_saved_actions is a tuple
-    vehicle.a2c_reward.append(R)
-    vehicle.a2c_saved_actions.append(a2c_saved_actions)
-    

@@ -22,10 +22,6 @@ class Vehicle:
         self.penalty_for_not_pickup_for_this_time = 0
         self.penalty_for_not_pickup_for_next_time = 0
         self.lastStayTime = 0
-        
-        # FOR A2C
-        self.a2c_reward = []
-        self.a2c_saved_actions = [] 
 
     def get_distance_to(self, x, y):
         return math.sqrt((x - self.loc[0]) ** 2 + (y - self.loc[1]) ** 2)
