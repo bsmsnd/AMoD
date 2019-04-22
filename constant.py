@@ -21,9 +21,9 @@ REBALANCE = 3
 NINE_REGIONS = [[1, -1], [1, 0], [1, 1], [0, -1], [0, 0], [0, 1], [-1, -1], [-1, 0], [-1, 1]]
 
 # Set Hyper-parameters
-PICKUP_REWARD = 100
-DISTANCE_COST = -0.03
-NO_PICKUP_PENALTY = -500
+PICKUP_REWARD = 500
+DISTANCE_COST = -0.01
+NO_PICKUP_PENALTY = -10
 
 STAY_TIMEOUT = 60
 N_FEATURE = 39
@@ -37,9 +37,9 @@ GAMMA = 0.999
 TARGET_UPDATE = 10
 
 ILLEGAL_AREA = -1
-R_ILLEGAL = -500
+R_ILLEGAL = -1000
 SAVE_PERIOD = 3600
-LOAD_FLAG = True
+LOAD_FLAG = False
 SAVE_FLAG = True
 SAVE_PATH = './weight/a2c_weight.pt'
 LOAD_PATH = './weight/a2c_weight.pt'
@@ -48,5 +48,5 @@ MEMORY_SIZE = 5000
 
 SLIDE_WIN_SIZE = 5000
 const_bound = 1
-TRAIN_THRESHOLD = 20
+TRAIN_THRESHOLD = 25
 

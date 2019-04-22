@@ -82,8 +82,7 @@ class DispatchingLogic:
 #        self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
 
         # FOR A2C
-        
-        self.optimizer = optim.Adam(self.a2c_model.parameters(), lr=1e-4)
+        self.optimizer = optim.Adam(self.a2c_model.parameters(), lr=1e-5)
         self.eps = np.finfo(np.float32).eps.item()
 
         
@@ -124,6 +123,8 @@ class DispatchingLogic:
             if area2D[1] // GLOBAL_DIVIDE > 0:
                 global_area_code += 1
             self.smallRegionToGlobalRegion[region_code] = global_area_code
+        # Debug!!!
+        self.rebalance_dic = {}
 
     def of(self, status):
         ####################################################################################
@@ -152,10 +153,10 @@ class DispatchingLogic:
             vehicles_should_update[vehicle_label] = True
 
         states_copy = states.copy()
-        vehicle_label_to_index_in_states = [-1 for _ in range(NUMBER_OF_VEHICLES)]  # saves the index for each vehicle
+        vehicle_label_to_index_in_states_copy = [-1 for _ in range(NUMBER_OF_VEHICLES)]  # saves the index for each vehicle
 
         for i in range(len(states[3])):
-            vehicle_label_to_index_in_states[states[3][i]] = i
+            vehicle_label_to_index_in_states_copy[states[3][i]] = i
 
         if not states[0]:
             return [pickup, rebalance]  # empty
@@ -169,7 +170,11 @@ class DispatchingLogic:
         while states_as_records:
             pickup_one_step = []
 
-            # Save the state for later learning (maybe?) and update states
+            # Save label to index for each step
+            vehicle_label_to_index_in_states_step = [-1 for _ in
+                                                     range(NUMBER_OF_VEHICLES)]  # saves the index for each vehicle
+            for i in range(len(states_as_records)):
+                vehicle_label_to_index_in_states_step[states_as_records[i][3]] = i
 
 
             for individual_state in states_as_records:
@@ -267,6 +272,8 @@ class DispatchingLogic:
                         final_command_for_each_vehicle[vehicle_label] = cmd
                 elif 18 < cmd <= 22:
                     index = cmd - 9 - 9 - 1
+                    # Debug!!!
+                    self.rebalance_dic[index.item()] = self.rebalance_dic.get(index.item(), 0) + 1
                     mid_num = MAP_DIVIDE // GLOBAL_DIVIDE
                     mid_lon = mid_num * GRAPHMAXCOORDINATE / MAP_DIVIDE
                     mid_lat = mid_num * self.lat_scale / MAP_DIVIDE
@@ -284,23 +291,17 @@ class DispatchingLogic:
                         sample_lon_max = GRAPHMAXCOORDINATE
 
                     vehicles_decided_new_action[i] = True
-                    if False:
-                    #if goto == ILLEGAL_AREA:
+                    # Will sample a rebalance location, even if the rebalance is not changed
+                    # random location
+                    new_location = (np.random.uniform(sample_lon_min, sample_lon_max),
+                                    np.random.uniform(sample_lat_min,
+                                                      sample_lat_max))  # TODO: get the new rebalance location
+                    rebalance.append([individual_state[3], self.coordinate_change('TO_COMMAND', new_location)])
+                    if self.fleet[vehicle_label].last_action is None:
                         pass
-                        #Memory_dataProcess(individual_state, cmd, individual_state, R_ILLEGAL, memory)
-                        #bad_rebalance_vehicles.append(vehicle_label)
                     else:
-                        # Will sample a rebalance location, even if the rebalance is not changed
-                        # random location
-                        new_location = (np.random.uniform(sample_lon_min, sample_lon_max),
-                                        np.random.uniform(sample_lat_min,
-                                                          sample_lat_max))  # TODO: get the new rebalance location
-                        rebalance.append([individual_state[3], self.coordinate_change('TO_COMMAND', new_location)])
-                        if self.fleet[vehicle_label].last_action is None:
-                            pass
-                        else:
-                            vehicles_should_get_rewards[vehicle_label] = True
-                        final_command_for_each_vehicle[vehicle_label] = cmd
+                        vehicles_should_get_rewards[vehicle_label] = True
+                    final_command_for_each_vehicle[vehicle_label] = cmd
                 else:
                     raise ValueError('Illegal Action')
 
@@ -330,7 +331,7 @@ class DispatchingLogic:
                         which_car = pickup_list[region_code][col[i]]
                         which_request = open_requests_info_in_area[region_code][row[i]][0]
                         pickup_one_step.append([which_car, which_request])
-                        final_command_for_each_vehicle[which_car] = actions[vehicle_label_to_index_in_states[which_car]]
+                        final_command_for_each_vehicle[which_car] = actions[vehicle_label_to_index_in_states_step[which_car]]
                         # update global stats
                         global_area_code_for_req = self.smallRegionToGlobalRegion[region_code]
                         open_requests_global[global_area_code_for_req] -= 1
@@ -371,6 +372,7 @@ class DispatchingLogic:
                 self.fleet[vehicle_label].last_action = get_action
                 self.fleet[vehicle_label].pickupStartTime = self.time
                 self.responded_requests.append(single_pickup[1])
+                vehicles_should_get_rewards[vehicle_label] = True
 
             for region_code in range(MAP_DIVIDE ** 2):
                 n_removed = 0
@@ -391,7 +393,7 @@ class DispatchingLogic:
             n_removed = 0
             for i in range(len(states_as_records)):
                 if vehicles_decided_new_action[i]:
-                    self.fleet[states_copy[3][i]].a2c_saved_actions.append(saved_actions[i])
+                    self.fleet[states_as_records[i-n_removed][3]].a2c_saved_actions.append(saved_actions[i])
                     states_as_records.pop(i - n_removed)
                     n_removed += 1
 
@@ -428,7 +430,7 @@ class DispatchingLogic:
 
             states = new_state
             for i in range(len(new_state[3])):
-                idx = vehicle_label_to_index_in_states[new_state[3][i]]
+                idx = vehicle_label_to_index_in_states_copy[new_state[3][i]]
                 assert states_copy[3][idx] == new_state[3][i]
                 states_copy[0][idx] = new_state[0][i].copy()
                 states_copy[1][idx] = new_state[1][i].copy()
@@ -436,6 +438,9 @@ class DispatchingLogic:
 
             pickup = pickup + pickup_one_step
             # END OF WHILE LOOP
+        # Debug!!!
+        if self.time % 360 == 0:
+            print(self.rebalance_dic)
         # print('bad pickup:')
         # print(bad_pickup_vehicles)
         # print('bad rebalance')
@@ -472,7 +477,7 @@ class DispatchingLogic:
                 self.n_rewards = self.n_rewards + 1
                 self.running_reward = self.running_reward + r
                 """
-                idx = vehicle_label_to_index_in_states[i]
+                idx = vehicle_label_to_index_in_states_copy[i]
                 assert idx != -1
                 get_state = [states_copy[0][idx], states_copy[1][idx], states_copy[2][idx],
                              states_copy[3][idx], states_copy[4][idx]]
@@ -709,14 +714,8 @@ class DispatchingLogic:
         # for param in self.a2c_model.parameters():
         #     param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
-        print("Loss:", loss.item())
-
-        # Optimize the model
-        # self.optimizer.zero_grad()
-        # loss.backward()
-        # for param in self.policy_net.parameters():
-        #     param.grad.data.clamp_(-1, 1)
-        # self.optimizer.step()
+        # Debug!!!
+        # print("Loss:", loss.item())
 
     def reward_compute(self, vehicle, old_state):
         """
@@ -733,11 +732,11 @@ class DispatchingLogic:
         if old_state == REBALANCE and (vehicle.status == STAY or vehicle.status == REBALANCE):  # end of rebalance: give deduction
             reward = (self.time - vehicle.rebalanceStartTime) * DISTANCE_COST + vehicle.penalty_for_not_pickup_for_this_time
         if vehicle.status == STAY and old_state == DRIVEWITHCUSTOMER:
-            reward = PICKUP_REWARD + vehicle.penalty_for_not_pickup_for_this_time
-            if vehicle.getPickupAtRebalance:
-                reward += (vehicle.pickupEndTime - vehicle.rebalanceStartTime) * DISTANCE_COST
-            else:
-                reward += (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST
+            reward = PICKUP_REWARD + vehicle.penalty_for_not_pickup_for_this_time + (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST
+            # if vehicle.getPickupAtRebalance:
+            #     reward += (vehicle.pickupEndTime - vehicle.rebalanceStartTime) * DISTANCE_COST
+            # else:
+            #     reward += (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST
         if old_state == STAY:
             reward = 0 + vehicle.penalty_for_not_pickup_for_this_time
         if reward is None:

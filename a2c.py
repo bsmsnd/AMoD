@@ -24,9 +24,13 @@ class A2C(nn.Module):
         self.fc = nn.Linear(16*3*3, 9)
         self.fc_global = nn.Linear(4*4, 4)
         self.affine = nn.Linear(n_features, 128)
+        self.fc1 = nn.Linear(128, 256)
+        self.fc2 = nn.Linear(256, 512)
+        self.fc3 = nn.Linear(512, 512)
+        self.fc4 = nn.Linear(512, 256)
         self.relu = nn.ReLU()
-        self.action_layer = nn.Linear(128, n_actions)
-        self.value_layer = nn.Linear(128, 1)
+        self.action_layer = nn.Linear(256, n_actions)
+        self.value_layer = nn.Linear(256, 1)
         
         self.saved_actions = []
         self.rewards = []
@@ -55,6 +59,10 @@ class A2C(nn.Module):
         out3 = torch.cat((xx, yy, zz), 1)
 
         out4 = self.relu(self.affine(out3))
+        out4 = self.relu(self.fc1(out4))
+        out4 = self.relu(self.fc2(out4))
+        out4 = self.relu(self.fc3(out4))
+        out4 = self.relu(self.fc4(out4))
         action_scores = self.action_layer(out4)
         state_values = self.value_layer(out4)
 
