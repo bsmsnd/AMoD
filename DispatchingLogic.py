@@ -65,7 +65,8 @@ class DispatchingLogic:
 #        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = optim.Adam(self.policy_net.parameters(), LEARNING_RATE)
+        #self.optimizer = optim.Adam(self.policy_net.parameters(), LEARNING_RATE)
+        self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=0.001, alpha=0.99, eps=1e-08, weight_decay=0, momentum=0, centered=False)
         #self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
         self.steps_done = 0
 
@@ -139,10 +140,10 @@ class DispatchingLogic:
             vehicles_should_update[vehicle_label] = True
 
         states_copy = states.copy()
-        vehicle_label_to_element_in_states = [-1 for _ in range(NUMBER_OF_VEHICLES)]  # saves the index for each vehicle
+        vehicle_label_to_element_in_states_copy = [-1 for _ in range(NUMBER_OF_VEHICLES)]  # saves the index for each vehicle
 
         for i in range(len(states[3])):
-            vehicle_label_to_element_in_states[states[3][i]] = i
+            vehicle_label_to_element_in_states_copy[states[3][i]] = i
 
         if not states[0]:
             return [pickup, rebalance]  # empty
@@ -155,12 +156,18 @@ class DispatchingLogic:
 
         # add global gird states
         old_states_global = [self.fleet[i].last_state_global for i in range(NUMBER_OF_VEHICLES)]
+        
 
 
         while states_as_records:
             pickup_one_step = []
 
-            # Save the state for later learning (maybe?) and update states
+            # save one step label to index
+            vehicle_label_to_element_in_states_step = [-1 for _ in range(NUMBER_OF_VEHICLES)]  # saves the index for each vehicle
+        
+            for i in range(len(states_as_records)):
+                vehicle_label_to_element_in_states_step[states_as_records[i][3]] = i
+
 
 
             for individual_state in states_as_records:
@@ -224,6 +231,12 @@ class DispatchingLogic:
                     else:
                         vehicles_decided_new_action[i] = True  # TODO
                         Memory_dataProcess(individual_state,statistics, cmd, individual_state, statistics, R_ILLEGAL, memory)
+                        self.running_reward = self.running_reward + R_ILLEGAL
+                        self.slid_reward.append(R_ILLEGAL)
+                        if len(self.slid_reward) > SLIDE_WIN_SIZE:
+                            self.running_reward -= self.slid_reward[0]
+                            del self.slid_reward[0]
+                        self.n_rewards = len(self.slid_reward)
                         bad_pickup_vehicles.append(vehicle_label)
                 elif 9 < cmd <= 18:  # rebalance 1-9
                     goto = convert_area(individual_state[4], cmd - 9 - 1, '1D', '1D')
@@ -232,6 +245,12 @@ class DispatchingLogic:
                     vehicles_decided_new_action[i] = True
                     if goto == ILLEGAL_AREA:
                         Memory_dataProcess(individual_state, statistics, cmd, individual_state, statistics, R_ILLEGAL, memory)
+                        self.running_reward = self.running_reward + R_ILLEGAL
+                        self.slid_reward.append(R_ILLEGAL)
+                        if len(self.slid_reward) > SLIDE_WIN_SIZE:
+                            self.running_reward -= self.slid_reward[0]
+                            del self.slid_reward[0]
+                        self.n_rewards = len(self.slid_reward)
                         bad_rebalance_vehicles.append(vehicle_label)
                     else:
                         # Will sample a rebalance location, even if the rebalance is not changed
@@ -270,7 +289,7 @@ class DispatchingLogic:
                     self.rebalance_stat[cmd - 10 - 9] += 1
 
                     vehicles_decided_new_action[i] = True
-                    if False:
+                    if False:  
                     #if goto == ILLEGAL_AREA:
                         pass
                         #Memory_dataProcess(individual_state, cmd, individual_state, R_ILLEGAL, memory)
@@ -316,7 +335,7 @@ class DispatchingLogic:
                         which_car = pickup_list[region_code][col[i]]
                         which_request = open_requests_info_in_area[region_code][row[i]][0]
                         pickup_one_step.append([which_car, which_request])
-                        go_blue = vehicle_label_to_element_in_states[which_car]
+                        go_blue = vehicle_label_to_element_in_states_step[which_car]
                         final_command_for_each_vehicle[which_car] = actions[go_blue]
                         # update global stats
                         global_area_code_for_req = self.smallRegionToGlobalRegion[region_code]
@@ -414,7 +433,7 @@ class DispatchingLogic:
 
             states = new_state
             for i in range(len(new_state[3])):
-                idx = vehicle_label_to_element_in_states[new_state[3][i]]
+                idx = vehicle_label_to_element_in_states_copy[new_state[3][i]]
                 assert states_copy[3][idx] == new_state[3][i]
                 states_copy[0][idx] = new_state[0][i].copy()
                 states_copy[1][idx] = new_state[1][i].copy()
@@ -454,7 +473,7 @@ class DispatchingLogic:
                 self.n_rewards = self.n_rewards + 1
                 self.running_reward = self.running_reward + r
                 """
-                idx = vehicle_label_to_element_in_states[i]
+                idx = vehicle_label_to_element_in_states_copy[i]
                 assert idx != -1
                 get_state = [states_copy[0][idx], states_copy[1][idx], states_copy[2][idx],
                              states_copy[3][idx], states_copy[4][idx]]

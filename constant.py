@@ -1,8 +1,8 @@
 GRAPHMAXCOORDINATE = 100  # This sets the max. coordinate of
 NUMBER_OF_VEHICLES = 20  # Change AidoGuest.py as well!
-MAP_DIVIDE = 5  # Set this value to change the grid of the map N x N
+MAP_DIVIDE = 3  # Set this value to change the grid of the map N x N
 GLOBAL_DIVIDE = 2
-LEARNING_RATE = 3e-3
+LEARNING_RATE = 1e-6
 global LAT_SCALE
 # LAT_SCALE = 100
 
