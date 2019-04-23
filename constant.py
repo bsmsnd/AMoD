@@ -22,16 +22,16 @@ NINE_REGIONS = [[1, -1], [1, 0], [1, 1], [0, -1], [0, 0], [0, 1], [-1, -1], [-1,
 # Set Hyper-parameters
 PICKUP_REWARD = 100
 DISTANCE_COST = -0.03
-NO_PICKUP_PENALTY = -500
+NO_PICKUP_PENALTY = -100
 
 STAY_TIMEOUT = 60
 N_FEATURE = 27
 N_ACTION = 19
 
-EPS_START = 0.3
+EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 2000
-BATCH_SIZE = 64
+BATCH_SIZE = 192
 GAMMA = 0.999
 TARGET_UPDATE = 10
 
@@ -39,7 +39,12 @@ ILLEGAL_AREA = -1
 R_ILLEGAL = -1000
 SAVE_PERIOD = 3600
 LOAD_FLAG = True
-SAVE_FLAG = False
+SAVE_FLAG = True
+
+# choose EPS_START accordingly
+if LOAD_FLAG:
+    EPS_START = 0.3
+
 SAVE_PATH = './weight/dqn_weight.pt'
 LOAD_PATH = './weight/dqn_weight.pt'
 PRINT_REWARD_PERIOD = 120

@@ -65,7 +65,7 @@ class DispatchingLogic:
 #        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.01)
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=1e-3)
         #self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
         self.steps_done = 0
 
