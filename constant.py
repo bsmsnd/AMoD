@@ -2,7 +2,7 @@ GRAPHMAXCOORDINATE = 100  # This sets the max. coordinate of
 NUMBER_OF_VEHICLES = 20  # Change AidoGuest.py as well!
 MAP_DIVIDE = 3  # Set this value to change the grid of the map N x N
 GLOBAL_DIVIDE = 2
-LEARNING_RATE = 1e-6
+LEARNING_RATE = 1e-3
 global LAT_SCALE
 # LAT_SCALE = 100
 
@@ -22,7 +22,7 @@ NINE_REGIONS = [[1, -1], [1, 0], [1, 1], [0, -1], [0, 0], [0, 1], [-1, -1], [-1,
 # Set Hyper-parameters
 PICKUP_REWARD = 100
 DISTANCE_COST = -0.01
-NO_PICKUP_PENALTY = -500
+NO_PICKUP_PENALTY = -100
 
 STAY_TIMEOUT = 20
 
@@ -41,7 +41,7 @@ ILLEGAL_AREA = -1
 R_ILLEGAL = -1000
 SAVE_PERIOD = 3600
 LOAD_FLAG = False
-SAVE_FLAG = False
+SAVE_FLAG = True
 SAVE_PATH = './weight/dqn_weight.pt'
 LOAD_PATH = './weight/dqn_weight.pt'
 PRINT_REWARD_PERIOD = 120

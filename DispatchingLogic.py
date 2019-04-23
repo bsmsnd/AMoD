@@ -65,8 +65,8 @@ class DispatchingLogic:
 #        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        #self.optimizer = optim.Adam(self.policy_net.parameters(), LEARNING_RATE)
-        self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=0.001, alpha=0.99, eps=1e-08, weight_decay=0, momentum=0, centered=False)
+        self.optimizer = optim.Adam(self.policy_net.parameters(), LEARNING_RATE)
+        # self.optimizer = optim.RMSprop(self.policy_net.parameters(), lr=0.001, alpha=0.99, eps=1e-08, weight_decay=0, momentum=0, centered=False)
         #self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
         self.steps_done = 0
 
@@ -269,7 +269,7 @@ class DispatchingLogic:
                     index = cmd - 9 - 9 - 1
                     # DEBUG!!!!
                     self.global_rabalance[index] += 1
-                    print(self.global_rabalance)
+                    # print(self.global_rabalance)
                     mid_num = MAP_DIVIDE // GLOBAL_DIVIDE
                     mid_lon = mid_num * GRAPHMAXCOORDINATE / MAP_DIVIDE
                     mid_lat = mid_num * self.lat_scale / MAP_DIVIDE
