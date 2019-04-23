@@ -183,9 +183,10 @@ def generate_request():
     num_distr1 = abs(int(round(np.random.normal(0,std_distr1))))
     num_distr2 = abs(int(round(np.random.normal(0,std_distr2))))
     num_b = abs(int(round(np.random.normal(0,std_num_request))))
-    
-    generate_request_from_distr(num_distr1, loc_house, loc_downtown)
-    generate_request_from_distr(num_distr2, loc_downtown, loc_house)
+
+    if flag_dist_enable:
+        generate_request_from_distr(num_distr1, loc_house, loc_downtown)
+        generate_request_from_distr(num_distr2, loc_downtown, loc_house)
     if num_b != 0: 
       for i in range(num_b):
           ori_location = [random.uniform(lon[0], lon[1]), random.uniform(lat[0], lat[1])]
