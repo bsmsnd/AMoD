@@ -6,7 +6,7 @@ Created on Wed Apr  3 13:48:42 2019
 """
 
 from constant import NUMBER_OF_VEHICLES
-from DispatchingLogic_greedy import DispatchingLogic
+from DispatchingLogic import DispatchingLogic
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -369,7 +369,7 @@ if __name__ == "__main__":
         action = dispatch.of([time_p, state_vehicle, req, [0,0,0]])
 #        print(action[0])
         fleet_update(action)
-        if time_p % 1800 == 0:
+        if time_p % 1800 == 0 and len(wait_time)>0:
             print('Total {0} request---- average wait time for {1} request: {2} '.format(len(request_dic), 
                   len(wait_time), (wait_time_sum / len(wait_time))))
         if flag_plot_enable and time_p % plot_period == 0:

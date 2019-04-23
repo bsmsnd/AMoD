@@ -239,7 +239,8 @@ class DispatchingLogic:
                     for i in range(len(row)):
                         which_car = pickup_list[region_code][col[i]]
                         which_request = open_requests_info_in_area[region_code][row[i]][0]
-                        pickup_one_step.append([which_car, which_request])
+                        req_time = open_requests_info_in_area[region_code][row[i]][2]
+                        pickup_one_step.append([which_car, which_request, req_time])
                         for j in range(len(states[3])):
                             if states[3][j] == which_car:
                                 vehicles_decided_new_action[j] = True
@@ -271,6 +272,8 @@ class DispatchingLogic:
                 self.fleet[vehicle_label].getPickupAtRebalance = (self.fleet[vehicle_label].status == REBALANCE)
                 self.fleet[vehicle_label].last_action = get_action
                 self.fleet[vehicle_label].pickupStartTime = self.time
+                # FOR PICK-UP DECAY
+                self.fleet[vehicle_label].req_time = single_pickup[2]
                 self.responded_requests.append(single_pickup[1])
 
             for region_code in range(MAP_DIVIDE ** 2):
@@ -441,12 +444,13 @@ class DispatchingLogic:
                         flag = True
                         break
                 if not flag:
-                    open_requests.append([request[0], this_location])
+                    # FOR PICK-UP DECAY
+                    open_requests.append([request[0], this_location, request[1]])
                 pass
             else:
                 self.history_requests.append([request[1], which_area(this_location[0], this_location[1]), this_location])  # time, area, location
                 self.numRequestSeen = request[0]
-                open_requests.append([request[0], this_location])
+                open_requests.append([request[0], this_location, request[1]])
 
         # Here put requests into areas: open_requests_in_area
         open_requests_in_area = [0 for _ in range(MAP_DIVIDE ** 2)]
@@ -587,7 +591,12 @@ class DispatchingLogic:
         if old_state == REBALANCE and (vehicle.status == STAY or vehicle.status == REBALANCE):  # end of rebalance: give deduction
             reward = (self.time - vehicle.rebalanceStartTime) * DISTANCE_COST + vehicle.penalty_for_not_pickup_for_this_time
         if vehicle.status == STAY and old_state == DRIVEWITHCUSTOMER:
-            reward = PICKUP_REWARD + vehicle.penalty_for_not_pickup_for_this_time
+            if vehicle.req_time<=100:
+                reward = REWARD_MAX + vehicle.penalty_for_not_pickup_for_this_time
+            elif vehicle.req_time>100 and vehicle.req_time<=300:
+                reward = REWARD_MAX - (REWARD_MAX-REWARD_MIN)/(REQ_TIME_RIGHT-REQ_TIME_LEFT)*(vehicle.req_time-REQ_TIME_LEFT) + vehicle.penalty_for_not_pickup_for_this_time
+            else:
+                reward = REWARD_MIN + vehicle.penalty_for_not_pickup_for_this_time
             if vehicle.getPickupAtRebalance:
                 reward += (vehicle.pickupEndTime - vehicle.rebalanceStartTime) * DISTANCE_COST
             else:
