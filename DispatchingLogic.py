@@ -591,10 +591,11 @@ class DispatchingLogic:
         if old_state == REBALANCE and (vehicle.status == STAY or vehicle.status == REBALANCE):  # end of rebalance: give deduction
             reward = (self.time - vehicle.rebalanceStartTime) * DISTANCE_COST + vehicle.penalty_for_not_pickup_for_this_time
         if vehicle.status == STAY and old_state == DRIVEWITHCUSTOMER:
-            if vehicle.req_time<=100:
+            req_wait_time = vehicle.pickupEndTime - vehicle.req_time
+            if req_wait_time<=100:
                 reward = REWARD_MAX + vehicle.penalty_for_not_pickup_for_this_time
-            elif vehicle.req_time>100 and vehicle.req_time<=300:
-                reward = REWARD_MAX - (REWARD_MAX-REWARD_MIN)/(REQ_TIME_RIGHT-REQ_TIME_LEFT)*(vehicle.req_time-REQ_TIME_LEFT) + vehicle.penalty_for_not_pickup_for_this_time
+            elif req_wait_time>100 and req_wait_time<=300:
+                reward = REWARD_MAX - (REWARD_MAX-REWARD_MIN)/(REQ_TIME_RIGHT-REQ_TIME_LEFT)*(req_wait_time-REQ_TIME_LEFT) + vehicle.penalty_for_not_pickup_for_this_time
             else:
                 reward = REWARD_MIN + vehicle.penalty_for_not_pickup_for_this_time
             if vehicle.getPickupAtRebalance:
