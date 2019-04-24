@@ -54,7 +54,7 @@ def Memory_dataProcess(s, s_global, a, s_new, s_new_global, r, memory):
     num_veh_global_new = torch.tensor(s_new_global[2], dtype=torch.float)
     his_req_global_new = torch.tensor(s_new_global[1], dtype=torch.float).transpose(0, 1)
 
-    action = a.view(1, 1)
+    action = torch.tensor(a).view(1, 1)
     reward = torch.tensor(r, dtype=torch.float).view(1, 1)
     memory.push(open_req_last, num_veh_last, his_req_last,
                 open_req_global_last, num_veh_global_last, his_req_global_last,

@@ -28,8 +28,8 @@ class DQN(nn.Module):
         )
         self.fc1 = nn.Linear(16*3*3, 9)
         self.fc2 = nn.Linear(4*4, 4)
-        self.drop1 = nn.Drop(p=0.4)
-        self.drop2 = nn.Drop(p=0.6)
+        self.drop1 = nn.Dropout(p=0.4)
+        self.drop2 = nn.Dropout(p=0.6)
 
     def forward(self, x, y, z, x_global, y_global, z_global):
         # x: open requests batch_size x 9
