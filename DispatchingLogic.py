@@ -189,9 +189,9 @@ class DispatchingLogic:
             open_req_global = open_req_global.view(1, open_req_global.size()[0])
             num_veh_global = num_veh_global.view(1, num_veh_global.size()[0])
             his_req_global = his_req_global.contiguous().view(1, his_req_global.size()[0]*his_req_global.size()[1])
-            open_req_global = torch.ones([batch_size, open_req_global.size()[1]]) * open_req_global
-            num_veh_global = torch.ones([batch_size, num_veh_global.size()[1]]) * num_veh_global
-            his_req_global = torch.ones([batch_size, his_req_global.size()[1]]) * his_req_global
+            open_req_global = torch.ones([batch_size, open_req_global.size()[1]]).to(self.device) * open_req_global
+            num_veh_global = torch.ones([batch_size, num_veh_global.size()[1]]).to(self.device) * num_veh_global
+            his_req_global = torch.ones([batch_size, his_req_global.size()[1]]).to(self.device) * his_req_global
 
             actions = self.select_action(open_req, num_veh, his_req, open_req_global, num_veh_global, his_req_global)
 
