@@ -29,7 +29,7 @@ bottomLeft = [lon[0], lat[0]]
 topRight = [lon[1], lat[1]]
 
 # Initialize request
-std_num_request = 0.22  # variance for new request per 10 second
+std_num_request = 0.3  # variance for new request per 10 second
 num_request = 0  # count the total number of request   
 flag_dist_enable = False
 time_trafic= [9,18]
@@ -49,7 +49,7 @@ speed_initial = 30 # km/h
 speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot and save 
-flag_plot_enable = True
+flag_plot_enable = False
 flag_save_enable = False
 plot_period = 30
 save_period = 20
