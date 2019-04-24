@@ -355,9 +355,6 @@ class DispatchingLogic:
                         for i in range(m):
                             if i not in row:
                                 left_requests.append(open_requests_info_in_area[region_code][i])
-            
-
-            
 
             for single_pickup in pickup_one_step:
                 get_action = -1
@@ -369,7 +366,7 @@ class DispatchingLogic:
                 if get_action == -1:
                     raise ValueError("Internal Error: did not find action.")
                 self.fleet[vehicle_label].getPickupAtRebalance = (self.fleet[vehicle_label].status == REBALANCE)
-                self.fleet[vehicle_label].last_action = get_action
+                # self.fleet[vehicle_label].last_action = get_action
                 self.fleet[vehicle_label].pickupStartTime = self.time
                 self.responded_requests.append(single_pickup[1])
                 vehicles_should_get_rewards[vehicle_label] = True
@@ -455,7 +452,7 @@ class DispatchingLogic:
                 elif 10 <= final_command_for_each_vehicle[vehicle_label] < 19:  # Action = 10 ~ 18 is REBALANCE
                     goto_relative = final_command_for_each_vehicle[vehicle_label] - 9 - 1
                     to_area = convert_area(self.fleet[vehicle_label].area, goto_relative,'1D', '1D')
-                    self.fleet[vehicle_label].update_rebalance(self.time, to_area)
+                    self.fleet[vehicle_label].update_rebalance(self.time, to_area, final_command_for_each_vehicle[vehicle_label])
 
 
 
