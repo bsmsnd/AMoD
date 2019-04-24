@@ -49,9 +49,13 @@ class Vehicle:
 
     def update_stay(self, time):
         self.lastStayTime = time
+        self.last_action = 0  # in action space, 0 = stay
         # self.status = STAY
 
-    def update_rebalance(self, time, rebalance_to):
+    def update_rebalance(self, time, rebalance_to, cmd):
         self.rebalanceTo = rebalance_to
         self.rebalanceStartTime = time
+        self.last_action = cmd
+
+
         # self.status = REBALANCE
