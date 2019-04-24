@@ -23,6 +23,7 @@ memory = ReplayMemory(MEMORY_SIZE)
 #                         ('state', 'action', 'next_state', 'reward'))
 LAT_SCALE = 0
 
+
 class DispatchingLogic:
     """
     dispatching logic in the AidoGuest demo to compute dispatching instructions that are forwarded to the AidoHost
@@ -53,19 +54,19 @@ class DispatchingLogic:
         self.matchedTax = set()
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#        self.device = torch.device('cpu')
+        #        self.device = torch.device('cpu')
 
         self.last_state = None
         self.policy_net = DQN(N_FEATURE, N_ACTION).to(self.device)
-#        self.policy_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
+        #        self.policy_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         if LOAD_FLAG == True:
             self.policy_net = loadweight(self.policy_net, LOAD_PATH)
         self.target_net = DQN(N_FEATURE, N_ACTION).to(self.device)
-#        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
+        #        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.01)
-        #self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
+        # self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
         self.steps_done = 0
 
         self.history_requests = []
@@ -91,17 +92,18 @@ class DispatchingLogic:
         # Requests
         self.responded_requests = []
         self.rebalance_stat = [0 for _ in range(9)]
-        
+
         # To compute the total reward hourly
         self.slid_reward = []
         self.slid_reward_time = []
-        
+        self.reward_stat_start_time = 0
+
         # To count the number of pickups hourly
         self.hourly_pickup_list = []
         self.hourly_pickup_list_time = []
-        
-    
-      
+
+
+
     def of(self, status):
         ####################################################################################
         # This function returns the commands to vehicles given status
@@ -109,40 +111,14 @@ class DispatchingLogic:
         # pickup: a list of pickup commands [ [# vehicle, # request],...]
         # Rebalance: a list of rebalance commands: [ [# vehicle, rebalance_to], ...]
         ####################################################################################
-        # Output these values:
-        
-        def hourly_reward(self, r): 
-          
-          if len(self.slid_reward) >= 2 and \
-                  self.slid_reward_time[-1] - self.slid_reward_time[0] > 3600: 
-            #print("current hour:", self.time // 3600)
-            print("Reward per hour: ",  np.sum(self.slid_reward))
-            self.slid_reward = []
-            self.slid_reward_time = []
-      
-          else:
-            self.slid_reward.append(r)
-            self.slid_reward_time.append(self.time)
-            
-        def hourly_pickups(self, pickup):
-          
-          if len(self.hourly_pickup_list) >= 2 and \
-                  self.hourly_pickup_list_time[-1] - self.hourly_pickup_list_time[0] > 3600: 
-            #print("Current hour:", self.time // 3600)
-            print("Pickups per hour: ", np.sum(self.hourly_pickup_list))
-            self.hourly_pickup_list = []
-            self.hourly_pickup_list_time = []
-      
-          else:
-            self.hourly_pickup_list.append(len(pickup))
-            self.hourly_pickup_list_time.append(self.time)
-          
+
         pickup = []
         rebalance = []
 
         # Pre-process the data
         # num_vehicles_in_area, distance_to_each_area, request_distribution, open_requests = self.data_preprocess(status)
-        states, open_requests_info_in_area, vehicles_should_get_rewards, vehicle_last_state = self.data_preprocess(status)
+        states, open_requests_info_in_area, vehicles_should_get_rewards, vehicle_last_state = self.data_preprocess(
+            status)
         # states: [0] open requests in surroundings, [1] history req in surroundings
         #         [2] number vehicles, [3] label which car, [4] which area
 
@@ -160,6 +136,9 @@ class DispatchingLogic:
             vehicle_label_to_element_in_states[states[3][i]] = i
 
         if not states[0]:
+            # process some stats
+            self.hourly_pickups([])
+            self.print_reward()
             return [pickup, rebalance]  # empty
 
         for i in range(len(states[0])):
@@ -173,14 +152,14 @@ class DispatchingLogic:
 
             # Save the state for later learning (maybe?) and update states
 
-
             for individual_state in states_as_records:
                 self.fleet[individual_state[3]].last_state = individual_state
 
             # DQN
             open_req = torch.tensor(states[0], dtype=torch.float).to(self.device)  # size of batch_size x 9
             num_veh = torch.tensor(states[2], dtype=torch.float).to(self.device)  # size of batch_size x 9
-            his_req = torch.tensor(states[1], dtype=torch.float).transpose(1, 2).view(len(states[0]), -1, 3, 3).to(self.device) # size of batch_size x 4 x 3 x 3
+            his_req = torch.tensor(states[1], dtype=torch.float).transpose(1, 2).view(len(states[0]), -1, 3, 3).to(
+                self.device)  # size of batch_size x 4 x 3 x 3
             actions = self.select_action(open_req, num_veh, his_req)
 
             # gather vehicle labels in each region
@@ -198,8 +177,9 @@ class DispatchingLogic:
             # 10-18: REBALANCE to 1-9 regions from topleft to bottomright
 
             final_command_for_each_vehicle = [-1 for _ in range(NUMBER_OF_VEHICLES)]
-            pickup_list = [[] for _ in range(MAP_DIVIDE**2)]
-            vehicles_decided_new_action = [False for _ in range(len(states_as_records))] # saves the indices to remove in the list
+            pickup_list = [[] for _ in range(MAP_DIVIDE ** 2)]
+            vehicles_decided_new_action = [False for _ in
+                                           range(len(states_as_records))]  # saves the indices to remove in the list
             request_handled = [[False for _ in range(len(open_requests_info_in_area[region_code]))] for region_code in
                                range(MAP_DIVIDE ** 2)]  # saves the indices to remove in the list
             for i, individual_state in enumerate(states_as_records):
@@ -213,7 +193,7 @@ class DispatchingLogic:
                     else:
                         vehicles_should_get_rewards[vehicle_label] = True
                 elif 1 <= cmd <= 9:  # pick up 1-9
-                    goto = convert_area(individual_state[4], cmd-1, '1D', '1D')
+                    goto = convert_area(individual_state[4], cmd - 1, '1D', '1D')
                     if goto != ILLEGAL_AREA and open_requests_info_in_area[goto]:  # not empty
                         pickup_list[goto].append(individual_state[3])
                     else:
@@ -234,7 +214,8 @@ class DispatchingLogic:
                         long_min = GRAPHMAXCOORDINATE / MAP_DIVIDE * (goto % MAP_DIVIDE)
                         lati_min = self.lat_scale / MAP_DIVIDE * (goto // MAP_DIVIDE)
                         new_location = (np.random.uniform(long_min, long_min + GRAPHMAXCOORDINATE / MAP_DIVIDE),
-                                        np.random.uniform(lati_min, lati_min + self.lat_scale / MAP_DIVIDE))  # TODO: get the new rebalance location
+                                        np.random.uniform(lati_min,
+                                                          lati_min + self.lat_scale / MAP_DIVIDE))  # TODO: get the new rebalance location
                         rebalance.append([individual_state[3], self.coordinate_change('TO_COMMAND', new_location)])
                         if self.fleet[vehicle_label].last_action is None:
                             pass
@@ -254,7 +235,8 @@ class DispatchingLogic:
             for region_code in range(MAP_DIVIDE ** 2):
                 if not pickup_list[region_code] or not open_requests_info_in_area[region_code]:
                     n_left_requests[region_code] = len(open_requests_info_in_area[region_code])
-                dist_table = [[0 for _ in range(len(pickup_list[region_code]))] for __ in range(len(open_requests_info_in_area[region_code]))]  # Req x Vehicle
+                dist_table = [[0 for _ in range(len(pickup_list[region_code]))] for __ in
+                              range(len(open_requests_info_in_area[region_code]))]  # Req x Vehicle
                 for i in range(len(pickup_list[region_code])):
                     vehicle_label = pickup_list[region_code][i]
                     for request_label in range(len(open_requests_info_in_area[region_code])):
@@ -316,8 +298,13 @@ class DispatchingLogic:
                             if this_region2D[0] != ILLEGAL_AREA:
                                 area1D = convert_area(this_region2D, None, '2D', '1D')
                                 for vehicle in vehicles_in_each_region[area1D]:  # type: int
-                                    if final_command_for_each_vehicle[vehicle] == 0 or 10 <= final_command_for_each_vehicle[vehicle] <= 18:
-                                            self.fleet[vehicle].penalty_for_not_pickup_for_next_time += NO_PICKUP_PENALTY / (self.fleet[vehicle].get_distance_to(this_request_location[0], this_request_location[1]) + const_bound)
+                                    if final_command_for_each_vehicle[vehicle] == 0 or 10 <= \
+                                            final_command_for_each_vehicle[vehicle] <= 18:
+                                        self.fleet[
+                                            vehicle].penalty_for_not_pickup_for_next_time += NO_PICKUP_PENALTY / (
+                                                    self.fleet[vehicle].get_distance_to(this_request_location[0],
+                                                                                        this_request_location[
+                                                                                            1]) + const_bound)
 
             n_removed = 0
             for i in range(len(states_as_records)):
@@ -365,11 +352,10 @@ class DispatchingLogic:
                 states_copy[2][idx] = new_state[2][i].copy()
 
             pickup = pickup + pickup_one_step
-            
+
             # Count the number of pickups hourly
-            hourly_pickups(self, pickup)
-            
-            
+            self.hourly_pickups(pickup)
+
             # END OF WHILE LOOP
 
         for vehicle_label in range(NUMBER_OF_VEHICLES):
@@ -380,20 +366,18 @@ class DispatchingLogic:
                     self.fleet[vehicle_label].last_action = final_command_for_each_vehicle[vehicle_label]
                 elif 10 <= final_command_for_each_vehicle[vehicle_label] < 19:  # Action = 10 ~ 18 is REBALANCE
                     goto_relative = final_command_for_each_vehicle[vehicle_label] - 9 - 1
-                    to_area = convert_area(self.fleet[vehicle_label].area, goto_relative,'1D', '1D')
+                    to_area = convert_area(self.fleet[vehicle_label].area, goto_relative, '1D', '1D')
                     self.fleet[vehicle_label].update_rebalance(self.time, to_area)
-
-
 
         # handle rewards & ensemble a piece of record for Replay memory
         # all_replay = []
         for i in range(NUMBER_OF_VEHICLES):  # i: vehicle label
             if vehicles_should_get_rewards[i]:
                 r = self.reward_compute(self.fleet[i], vehicle_last_state[i][0])
-                
+
                 # Count the total reward hourly
-                hourly_reward(self, r)
-              
+                self.hourly_reward(r)
+
                 idx = vehicle_label_to_element_in_states[i]
                 assert idx != -1
                 get_state = [states_copy[0][idx], states_copy[1][idx], states_copy[2][idx],
@@ -408,24 +392,20 @@ class DispatchingLogic:
                 # record = [self.fleet[i].last_state, self.fleet[i].last_action, get_state, r]
                 # all_replay.append(record)
                 # Set Status after getting reward
-          
+        self.print_reward()
         # Optimize the network
         self.optimize_model()
-        if SAVE_FLAG==True:
+        if SAVE_FLAG == True:
             if self.time % SAVE_PERIOD == 0:
                 saveweight(self.policy_net, SAVE_PATH)
-  
-        
-        
-#        if self.time % PRINT_REWARD_PERIOD == 0:
-#            if self.n_rewards > 0:
-#                print("time %d:  %d rewards with average reward = %.4f" % (self.time, self.n_rewards, self.running_reward / self.n_rewards))
-#            else:
-#                print("time %d: no rewards so far" % self.time)
-  
+
+        #        if self.time % PRINT_REWARD_PERIOD == 0:
+        #            if self.n_rewards > 0:
+        #                print("time %d:  %d rewards with average reward = %.4f" % (self.time, self.n_rewards, self.running_reward / self.n_rewards))
+        #            else:
+        #                print("time %d: no rewards so far" % self.time)
+
         return [pickup, rebalance]
-        
-    
 
     def data_preprocess(self, status):
         # This function processes the data so that we can use it for further learning
@@ -435,7 +415,7 @@ class DispatchingLogic:
 
         # coordination change and update vehicle information
         num_vehicles_in_area = [0 for _ in range(MAP_DIVIDE ** 2)]
-        vehicles_in_each_area = [[] for _ in range(MAP_DIVIDE**2)]
+        vehicles_in_each_area = [[] for _ in range(MAP_DIVIDE ** 2)]
         distance_to_each_area = [[0. for _ in range(MAP_DIVIDE ** 2)] for __ in range(NUMBER_OF_VEHICLES)]
 
         vehicles_should_update = [False for _ in range(NUMBER_OF_VEHICLES)]
@@ -474,13 +454,14 @@ class DispatchingLogic:
                     open_requests.append([request[0], this_location])
                 pass
             else:
-                self.history_requests.append([request[1], which_area(this_location[0], this_location[1]), this_location])  # time, area, location
+                self.history_requests.append(
+                    [request[1], which_area(this_location[0], this_location[1]), this_location])  # time, area, location
                 self.numRequestSeen = request[0]
                 open_requests.append([request[0], this_location])
 
         # Here put requests into areas: open_requests_in_area
         open_requests_in_area = [0 for _ in range(MAP_DIVIDE ** 2)]
-        open_requests_info_in_area = [[] for _ in range(MAP_DIVIDE**2)]
+        open_requests_info_in_area = [[] for _ in range(MAP_DIVIDE ** 2)]
         for req in open_requests:
             my_area = which_area(req[1][0], req[1][1])
             open_requests_in_area[my_area] += 1
@@ -497,7 +478,7 @@ class DispatchingLogic:
         for his_request in self.history_requests:
             while his_request[1] < time_slot[time_flag] and time_flag < 3:
                 time_flag += 1
-            request_distribution[his_request[1]][time_flag]+= 1
+            request_distribution[his_request[1]][time_flag] += 1
 
         # get all vehicles that should update action
         update_areas = self.areas_to_handle_requests(open_requests_in_area)
@@ -579,7 +560,8 @@ class DispatchingLogic:
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
         # columns of actions taken. These are the actions which would've been taken
         # for each batch state according to policy_net
-        state_action_values = self.policy_net(open_req_last_batch, num_veh_last_batch, his_req_last_batch).gather(1, action_batch)
+        state_action_values = self.policy_net(open_req_last_batch, num_veh_last_batch, his_req_last_batch).gather(1,
+                                                                                                                  action_batch)
 
         # Compute V(s_{t+1}) for all next states.
         # Expected values of actions for non_final_next_states are computed based
@@ -592,8 +574,8 @@ class DispatchingLogic:
 
         # Compute Huber loss
         loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
-#        if self.time % 720 == 0:
-#            print("Loss:", loss.item())
+        #        if self.time % 720 == 0:
+        #            print("Loss:", loss.item())
 
         # Optimize the model
         self.optimizer.zero_grad()
@@ -614,8 +596,10 @@ class DispatchingLogic:
         assert isinstance(old_state, int)
 
         reward = None
-        if old_state == REBALANCE and (vehicle.status == STAY or vehicle.status == REBALANCE):  # end of rebalance: give deduction
-            reward = (self.time - vehicle.rebalanceStartTime) * DISTANCE_COST + vehicle.penalty_for_not_pickup_for_this_time
+        if old_state == REBALANCE and (
+                vehicle.status == STAY or vehicle.status == REBALANCE):  # end of rebalance: give deduction
+            reward = (
+                                 self.time - vehicle.rebalanceStartTime) * DISTANCE_COST + vehicle.penalty_for_not_pickup_for_this_time
         if vehicle.status == STAY and old_state == DRIVEWITHCUSTOMER:
             reward = PICKUP_REWARD + vehicle.penalty_for_not_pickup_for_this_time
             if vehicle.getPickupAtRebalance:
@@ -648,8 +632,9 @@ class DispatchingLogic:
             return [(loc[0] - self.lngMin) / self.unitLongitude, (loc[1] - self.latMin) / self.unitLatitude]
         elif direction == 'TO_COMMAND':
             assert 0 <= loc[0] <= GRAPHMAXCOORDINATE and 0 <= loc[1] <= self.lat_scale
-            converted  = [loc[0] * self.unitLongitude + self.lngMin, loc[1] * self.unitLatitude + self.latMin]
-            if (converted[0] < self.lngMin or converted[0] > self.lngMax or converted[1] < self.latMin or converted[1] > self.latMax):
+            converted = [loc[0] * self.unitLongitude + self.lngMin, loc[1] * self.unitLatitude + self.latMin]
+            if (converted[0] < self.lngMin or converted[0] > self.lngMax or converted[1] < self.latMin or converted[
+                1] > self.latMax):
                 raise ValueError
             return converted
         else:
@@ -703,3 +688,44 @@ class DispatchingLogic:
         actions = mask * actions + (torch.ones_like(mask) - mask) * actions_greedy
         return actions
         # torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
+
+        # print these values (Reward Stats):
+
+    def hourly_reward(self, r):
+        # if len(self.slid_reward) >= 2 and \
+        #         self.slid_reward_time[-1] - self.slid_reward_time[0] > 3600:
+        #     # print("current hour:", self.time // 3600)
+        #     print("Reward per hour: ", np.sum(self.slid_reward))
+        #     print("Reward Ratio: ", np.sum(self.slid_reward) / np.sum(self.hourly_pickup_list) / PICKUP_REWARD)
+        #     self.slid_reward = []
+        #     self.slid_reward_time = []
+            self.slid_reward.append(r)
+            self.slid_reward_time.append(self.time)
+
+    def hourly_pickups(self, pickup):
+        # if len(self.hourly_pickup_list) >= 2 and \
+        #         self.hourly_pickup_list_time[-1] - self.hourly_pickup_list_time[0] > 3600:
+        #     # print("Current hour:", self.time // 3600)
+        #     print("Pickups per hour: ", np.sum(self.hourly_pickup_list))
+        #     self.hourly_pickup_list = []
+        #     self.hourly_pickup_list_time = []
+        #
+        # else:
+        self.hourly_pickup_list.append(len(pickup))
+        self.hourly_pickup_list_time.append(self.time)
+
+    def print_reward(self):
+        if self.time - self.reward_stat_start_time >= 3600:
+            print('Running Time: ', self.time)
+            print("Reward per hour: ", np.sum(self.slid_reward))
+            print("Reward Ratio: ", np.sum(self.slid_reward) / np.sum(self.hourly_pickup_list) / PICKUP_REWARD)
+            print("Pickups per hour: ", np.sum(self.hourly_pickup_list))
+            self.slid_reward = []
+            self.slid_reward_time = []
+            self.hourly_pickup_list = []
+            self.hourly_pickup_list_time = []
+            self.reward_stat_start_time = self.time
+        else:
+            pass
+
+
