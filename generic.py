@@ -1,6 +1,7 @@
 from constant import *
 from utils.RoboTaxiStatus import RoboTaxiStatus
 import DispatchingLogic
+import math
 
 
 def which_area(x, y):
@@ -125,3 +126,7 @@ def _convert_2d_to_1d(loc):
     :return: a integer indicating its area code
     """
     return loc[0] * MAP_DIVIDE + loc[1]
+
+
+def get_distance(req_x, req_y, vehi_x, vehi_y):
+    return math.sqrt((req_x - vehi_x) ** 2 + (req_y - vehi_y) ** 2)

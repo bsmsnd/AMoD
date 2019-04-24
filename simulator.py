@@ -34,9 +34,9 @@ num_request = 0  # count the total number of request
 flag_dist_enable = False
 time_trafic= [9,18]
 var_trafic = [1,1]
-alpha = 1
-loc_house = [[0.02, 0.01], [0.02, 0.04], [0.07, 0.045], [0.08, 0.01]]
-loc_downtown = [[0.05, 0.03]]
+alpha = 0.6
+loc_house = [[0.02, 0.01], [0.02, 0.015], [0.07, 0.045], [0.08, 0.01]]
+loc_downtown = [[0.04, 0.035]]
 request_dic = {}  # save all the information about the request
 # all the index of request that have been responsed   
 # but the vehicle is drivingtocustome
@@ -49,7 +49,7 @@ speed_initial = 30 # km/h
 speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot and save 
-flag_plot_enable = False
+flag_plot_enable = True
 flag_save_enable = False
 plot_period = 30
 save_period = 20

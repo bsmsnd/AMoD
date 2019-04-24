@@ -1,6 +1,10 @@
 #BATCH_SIZE = 32  # Some hyper-parameters to adjust!
 GRAPHMAXCOORDINATE = 100  # This sets the max. coordinate of
 NUMBER_OF_VEHICLES = 20  # Change AidoGuest
+MAP_DIVIDE = 5
+
+global LAT_SCALE
+
 STAY = 0
 DRIVETOCUSTOMER = 1
 DRIVEWITHCUSTOMER = 2
@@ -20,7 +24,7 @@ NO_PICKUP_PENALTY = -100
 
 STAY_TIMEOUT = 60
 N_FEATURE = 27
-N_ACTION = 19
+N_ACTION = 10
 
 EPS_START = 0.9
 EPS_END = 0.05
