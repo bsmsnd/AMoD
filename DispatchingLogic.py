@@ -367,7 +367,7 @@ class DispatchingLogic:
                 elif 10 <= final_command_for_each_vehicle[vehicle_label] < 19:  # Action = 10 ~ 18 is REBALANCE
                     goto_relative = final_command_for_each_vehicle[vehicle_label] - 9 - 1
                     to_area = convert_area(self.fleet[vehicle_label].area, goto_relative, '1D', '1D')
-                    self.fleet[vehicle_label].update_rebalance(self.time, to_area)
+                    self.fleet[vehicle_label].update_rebalance(self.time, to_area, final_command_for_each_vehicle[vehicle_label])
 
         # handle rewards & ensemble a piece of record for Replay memory
         # all_replay = []
