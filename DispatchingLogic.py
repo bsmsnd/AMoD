@@ -1,5 +1,4 @@
 from typing import List, Any
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -87,18 +86,22 @@ class DispatchingLogic:
 
         print(LAT_SCALE)
         self.unitLatitude = (self.latMax - self.latMin) / self.lat_scale
-
         self.fleet = [Vehicle() for _ in range(NUMBER_OF_VEHICLES)]
 
         # Requests
         self.responded_requests = []
-
-        # rewards
-        self.running_reward = 0
-        self.n_rewards = 0
-        self.slid_reward = []
         self.rebalance_stat = [0 for _ in range(9)]
-
+        
+        # To compute the total reward hourly
+        self.slid_reward = []
+        self.slid_reward_time = []
+        
+        # To count the number of pickups hourly
+        self.hourly_pickup_list = []
+        self.hourly_pickup_list_time = []
+        
+    
+      
     def of(self, status):
         ####################################################################################
         # This function returns the commands to vehicles given status
@@ -107,6 +110,33 @@ class DispatchingLogic:
         # Rebalance: a list of rebalance commands: [ [# vehicle, rebalance_to], ...]
         ####################################################################################
         # Output these values:
+        
+        def hourly_reward(self, r): 
+          
+          if len(self.slid_reward) >= 2 and \
+                  self.slid_reward_time[-1] - self.slid_reward_time[0] > 3600: 
+            #print("current hour:", self.time // 3600)
+            print("Reward per hour: ",  np.sum(self.slid_reward))
+            self.slid_reward = []
+            self.slid_reward_time = []
+      
+          else:
+            self.slid_reward.append(r)
+            self.slid_reward_time.append(self.time)
+            
+        def hourly_pickups(self, pickup):
+          
+          if len(self.hourly_pickup_list) >= 2 and \
+                  self.hourly_pickup_list_time[-1] - self.hourly_pickup_list_time[0] > 3600: 
+            #print("Current hour:", self.time // 3600)
+            print("Pickups per hour: ", np.sum(self.hourly_pickup_list))
+            self.hourly_pickup_list = []
+            self.hourly_pickup_list_time = []
+      
+          else:
+            self.hourly_pickup_list.append(len(pickup))
+            self.hourly_pickup_list_time.append(self.time)
+          
         pickup = []
         rebalance = []
 
@@ -335,6 +365,11 @@ class DispatchingLogic:
                 states_copy[2][idx] = new_state[2][i].copy()
 
             pickup = pickup + pickup_one_step
+            
+            # Count the number of pickups hourly
+            hourly_pickups(self, pickup)
+            
+            
             # END OF WHILE LOOP
 
         for vehicle_label in range(NUMBER_OF_VEHICLES):
@@ -356,18 +391,9 @@ class DispatchingLogic:
             if vehicles_should_get_rewards[i]:
                 r = self.reward_compute(self.fleet[i], vehicle_last_state[i][0])
                 
-                # Save rewards here
-                self.running_reward = self.running_reward + r
-                self.slid_reward.append(r)
-                if len(self.slid_reward) > SLIDE_WIN_SIZE:
-                    self.running_reward -= self.slid_reward[0]
-                    del self.slid_reward[0]
-                self.n_rewards = len(self.slid_reward)
-                
-                """
-                self.n_rewards = self.n_rewards + 1
-                self.running_reward = self.running_reward + r
-                """
+                # Count the total reward hourly
+                hourly_reward(self, r)
+              
                 idx = vehicle_label_to_element_in_states[i]
                 assert idx != -1
                 get_state = [states_copy[0][idx], states_copy[1][idx], states_copy[2][idx],
@@ -382,20 +408,24 @@ class DispatchingLogic:
                 # record = [self.fleet[i].last_state, self.fleet[i].last_action, get_state, r]
                 # all_replay.append(record)
                 # Set Status after getting reward
-
-
+          
         # Optimize the network
         self.optimize_model()
         if SAVE_FLAG==True:
             if self.time % SAVE_PERIOD == 0:
                 saveweight(self.policy_net, SAVE_PATH)
-
-        if self.time % PRINT_REWARD_PERIOD == 0:
-            if self.n_rewards > 0:
-                print("time %d:  %d rewards with average reward = %.4f" % (self.time, self.n_rewards, self.running_reward / self.n_rewards))
-            else:
-                print("time %d: no rewards so far" % self.time)
+  
+        
+        
+#        if self.time % PRINT_REWARD_PERIOD == 0:
+#            if self.n_rewards > 0:
+#                print("time %d:  %d rewards with average reward = %.4f" % (self.time, self.n_rewards, self.running_reward / self.n_rewards))
+#            else:
+#                print("time %d: no rewards so far" % self.time)
+  
         return [pickup, rebalance]
+        
+    
 
     def data_preprocess(self, status):
         # This function processes the data so that we can use it for further learning
@@ -562,8 +592,8 @@ class DispatchingLogic:
 
         # Compute Huber loss
         loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
-        if self.time % 720 == 0:
-            print("Loss:", loss.item())
+#        if self.time % 720 == 0:
+#            print("Loss:", loss.item())
 
         # Optimize the model
         self.optimizer.zero_grad()

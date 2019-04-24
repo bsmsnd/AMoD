@@ -1,6 +1,6 @@
 from constant import *
 from utils.RoboTaxiStatus import RoboTaxiStatus
-import DispatchingLogic
+import DispatchingLogic  # To change, please also change simulator.py or AidoGuest.py
 
 
 def which_area(x, y):

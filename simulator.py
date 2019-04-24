@@ -6,7 +6,7 @@ Created on Wed Apr  3 13:48:42 2019
 """
 
 from constant import NUMBER_OF_VEHICLES
-from DispatchingLogic_greedy import DispatchingLogic
+from DispatchingLogic import DispatchingLogic  # To change, please also change the import in generic.py
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -329,6 +329,7 @@ def plot():
         elif fleet[i].status is RoboTaxiStatus.DRIVEWITHCUSTOMER:
             plt.plot(fleet[i].loc[0], fleet[i].loc[1], marker='o', markersize=6, color="r")
     plt.axis([lon[0], lon[1], lat[0], lat[1]])
+    plt.title('%d day %d:%d' % (time_p // 86400, time_p % 86400 // 3600, time_p % 3600 // 60))
     plt.pause(pause_time)
     
 
