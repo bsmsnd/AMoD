@@ -115,6 +115,8 @@ class DispatchingLogic:
                         rebalanceLocation = self.getRandomRebalanceLocation(area, MAP_DIVIDE)
                         rebalance.append([roboTaxi[0], rebalanceLocation])
 
+            self.matchedTax = set()
+
             '''
             # rebalance 1 of the remaining and unmatched STAY taxis
             for roboTaxi in status[1]:

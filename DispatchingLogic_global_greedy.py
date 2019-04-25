@@ -86,6 +86,8 @@ class DispatchingLogic:
                         rebalanceLocation = self.getRandomRebalanceLocation()
                         rebalance.append([roboTaxi[0], rebalanceLocation])
 
+            self.matchedTax = set()
+
             '''
             # for each unassigned request, add a taxi in STAY mode
             for request in requests:
