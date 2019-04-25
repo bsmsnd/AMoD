@@ -1,7 +1,7 @@
 #BATCH_SIZE = 32  # Some hyper-parameters to adjust!
 GRAPHMAXCOORDINATE = 100  # This sets the max. coordinate of
 NUMBER_OF_VEHICLES = 20  # Change AidoGuest
-MAP_DIVIDE = 5
+MAP_DIVIDE = 4
 
 global LAT_SCALE
 
@@ -36,14 +36,14 @@ TARGET_UPDATE = 10
 ILLEGAL_AREA = -1
 R_ILLEGAL = -1000
 SAVE_PERIOD = 3600
-LOAD_FLAG = False
+LOAD_FLAG = True
 SAVE_FLAG = True
 
 # choose EPS_START accordingly
 if LOAD_FLAG:
     EPS_START = 0.3
 
-SAVE_PATH = './weight/dqn_weight0423.pt'
+SAVE_PATH = './weight/dqn_weight0424.pt'
 LOAD_PATH = './weight/dqn_weight0423.pt'
 PRINT_REWARD_PERIOD = 120
 MEMORY_SIZE = 5000

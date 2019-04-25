@@ -137,7 +137,9 @@ class DispatchingLogic:
         old_states = [self.fleet[i].last_state for i in range(NUMBER_OF_VEHICLES)]
         all_last_actions = [self.fleet[i].last_action for i in range(NUMBER_OF_VEHICLES)]
 
-
+        vehicle_label_to_element_in_states = [-1 for _ in range(NUMBER_OF_VEHICLES)]  # saves the index for each vehicle
+        for i in range(len(states[0])):
+            vehicle_label_to_element_in_states[states[3][i]] = i
         # Greedy Pick Up
         requests = sorted(status[2].copy(), key=lambda request: request[1])
 
@@ -161,7 +163,9 @@ class DispatchingLogic:
             for j in range(len(available_vehicle)):
                 request = unmatched_requests[i]
                 vehicle = available_vehicle[j]
-                dist_table[i][j] = get_distance(request[2][0], request[2][1], vehicle[1][0], vehicle[1][1])
+                req_loc = self.coordinate_change('TO_MODEL', request[2])
+                veh_loc = self.coordinate_change('TO_MODEL', vehicle[1])
+                dist_table[i][j] = get_distance(req_loc[0], req_loc[1], veh_loc[0], veh_loc[1])
 
         if dist_table:
             row, col = op.linear_sum_assignment(dist_table)
@@ -177,14 +181,18 @@ class DispatchingLogic:
         states_left = [[], [], [], []]
         for i in range(len(states[0])):
             if states[3][i] not in pick_up_vehicle:
-                states_as_records.append([states[0][i], states[1][i], states[2][i], states[3][i], states[4][i]])
-                states_left[0].append(states[0][i])
-                states_left[1].append(states[1][i])
-                states_left[2].append(states[2][i])
-                states_left[3].append(states[3][i])
-        vehicle_label_to_element_in_states = [-1 for _ in range(NUMBER_OF_VEHICLES)]  # saves the index for each vehicle
-        for i in range(len(states_left[3])):
-            vehicle_label_to_element_in_states[states_left[3][i]] = i
+                if self.fleet[i].status == STAY:
+                    states_as_records.append([states[0][i], states[1][i], states[2][i], states[3][i], states[4][i]])
+                    states_left[0].append(states[0][i])
+                    states_left[1].append(states[1][i])
+                    states_left[2].append(states[2][i])
+                    states_left[3].append(states[3][i])
+            else:
+                self.fleet[i].act_before_pick = self.fleet[i].last_action
+                self.fleet[i].last_state = [states[0][i], states[1][i], states[2][i], states[3][i], states[4][i]]
+                self.fleet[i].pickupStartTime = self.time
+
+
 
         if states_as_records:
             # states: [0] open requests in surroundings, [1] history req in surroundings
@@ -382,14 +390,14 @@ class DispatchingLogic:
             # pickup = pickup + pickup_one_step
             # END OF WHILE LOOP
 
-        for vehicle_label in range(NUMBER_OF_VEHICLES):
-            if vehicles_should_update[vehicle_label]:
-                if final_command_for_each_vehicle[vehicle_label] == 0:  # 0: Action = 0 is STAY
-                    self.fleet[vehicle_label].update_stay(self.time)
-                elif 1 <= final_command_for_each_vehicle[vehicle_label] < 10:  # Action = 1 ~ 9 is REBALANCE
-                    goto_relative = final_command_for_each_vehicle[vehicle_label] - 1
-                    to_area = convert_area(self.fleet[vehicle_label].area, goto_relative,'1D', '1D')
-                    self.fleet[vehicle_label].update_rebalance(self.time, to_area)
+            for vehicle_label in range(NUMBER_OF_VEHICLES):
+                if vehicles_should_update[vehicle_label]:
+                    if final_command_for_each_vehicle[vehicle_label] == 0:  # 0: Action = 0 is STAY
+                        self.fleet[vehicle_label].update_stay(self.time)
+                    elif 1 <= final_command_for_each_vehicle[vehicle_label] < 10:  # Action = 1 ~ 9 is REBALANCE
+                        goto_relative = final_command_for_each_vehicle[vehicle_label] - 1
+                        to_area = convert_area(self.fleet[vehicle_label].area, goto_relative,'1D', '1D')
+                        self.fleet[vehicle_label].update_rebalance(self.time, to_area)
 
 
 
@@ -397,10 +405,11 @@ class DispatchingLogic:
         # all_replay = []
         for i in range(NUMBER_OF_VEHICLES):  # i: vehicle label
             if vehicles_should_get_rewards[i]:
-                r = self.reward_compute(self.fleet[i], vehicle_last_state[i][0])
-                if r is None:
+                if vehicle_last_state[i][0] == DRIVEWITHCUSTOMER and self.fleet[i].status == STAY and self.fleet[i].act_before_pick is None:
                     continue
+                r = self.reward_compute(self.fleet[i], vehicle_last_state[i][0])
                 # Save rewards here
+
                 self.running_reward = self.running_reward + r
                 self.slid_reward.append(r)
                 if len(self.slid_reward) > SLIDE_WIN_SIZE:
@@ -521,12 +530,13 @@ class DispatchingLogic:
                 for j in vehicles_in_each_area[i]:
                     vehicles_should_update[j] = True
         for i in range(NUMBER_OF_VEHICLES):
-            if not vehicles_should_update[i] and self.should_update_individual(self.fleet[i], vehicle_last_state[i][0]):
-                vehicles_should_update[i] = True
+            # if not vehicles_should_update[i] and self.should_update_individual(self.fleet[i], vehicle_last_state[i][0]):
+            vehicles_should_update[i] = True
 
         states = [[] for _ in range(5)]
         for i in range(NUMBER_OF_VEHICLES):
-            if vehicles_should_update[i]:
+            if True:
+            # if vehicles_should_update[i]:
                 states[3].append(i)
                 curr_area = self.fleet[i].area
                 states[4].append(curr_area)
@@ -554,6 +564,10 @@ class DispatchingLogic:
         vehicles_should_get_rewards = [False] * NUMBER_OF_VEHICLES
         for i in range(NUMBER_OF_VEHICLES):
             vehicles_should_get_rewards[i] = self.should_get_reward(self.fleet[i], vehicle_last_state[i][0])
+            if self.fleet[i].status == DRIVEWITHCUSTOMER and vehicle_last_state[i][0] == DRIVETOCUSTOMER:
+                self.fleet[i].pickupEndTime = self.time
+
+
 
         # # update s', r
         # for i in range(NUMBER_OF_VEHICLES):
@@ -645,23 +659,43 @@ class DispatchingLogic:
         #         reward += (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST
         if old_state == STAY and (vehicle.status == STAY or vehicle.status == REBALANCE):
             reward = 0
-        if (old_state == STAY or old_state == REBALANCE) and vehicle.status == DRIVETOCUSTOMER:
-            vehicle.act_before_pick = old_state
-        if old_state == DRIVETOCUSTOMER and vehicle.status == DRIVEWITHCUSTOMER:
-            if vehicle.act_before_pick == REBALANCE:
-                vehicle.act_before_pick = None
-                reward = (vehicle.pickupEndTime - vehicle.rebalanceStartTime) * DISTANCE_COST + PICKUP_REWARD
-            elif vehicle.act_before_pick == STAY:
-                vehicle.act_before_pick = None
-                reward = (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST + PICKUP_REWARD  # Bug!!!!
-            else:
-                raise ValueError('reward wrong')
+        # if (old_state == STAY or old_state == REBALANCE) and vehicle.status == DRIVETOCUSTOMER:
+        #     vehicle.act_before_pick = old_state
+        if old_state == DRIVEWITHCUSTOMER and vehicle.status == STAY:
+            reward = self.compute_reward_before_pickup(vehicle) + self.compute_reward_pickup(vehicle) + PICKUP_REWARD
+        # if old_state == DRIVETOCUSTOMER and vehicle.status == DRIVEWITHCUSTOMER:
+        #     if vehicle.act_before_pick == REBALANCE:
+        #         vehicle.act_before_pick = None
+        #         reward = (vehicle.pickupEndTime - vehicle.rebalanceStartTime) * DISTANCE_COST + PICKUP_REWARD
+        #     elif vehicle.act_before_pick == STAY:
+        #         vehicle.act_before_pick = None
+        #         reward = (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST + PICKUP_REWARD  # Bug!!!!
+        #     else:
+        #         raise ValueError('reward wrong')
+
         # if reward is None:
         #     raise ValueError('reward wrong')
         # else:
         #     vehicle.penalty_for_not_pickup_for_this_time = vehicle.penalty_for_not_pickup_for_next_time
         #     vehicle.penalty_for_not_pickup_for_next_time = 0
         return reward
+
+    def compute_reward_before_pickup(self, vehicle):
+        assert isinstance(vehicle, Vehicle)
+        if vehicle.act_before_pick is None:
+            raise ValueError('Action before pick up is not STAY or REBALANCE')
+        elif vehicle.act_before_pick == 0:
+            vehicle.act_before_pick = None
+            return 0
+        elif 0 < vehicle.act_before_pick < N_ACTION:
+            vehicle.act_before_pick = None
+            return (vehicle.pickupStartTime - vehicle.rebalanceStartTime) * DISTANCE_COST
+        else:
+            raise ValueError('Action before pick up out of range')
+
+
+    def compute_reward_pickup(self, vehicle):
+        return (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST *5
 
     def coordinate_change(self, direction, loc):
         if direction == 'TO_MODEL':
@@ -721,10 +755,10 @@ class DispatchingLogic:
             return True
         if last_state == REBALANCE and vehicle.status == STAY:
             return True
-        if last_state == DRIVETOCUSTOMER and vehicle.status == DRIVEWITHCUSTOMER:
-            return True
         if last_state == DRIVEWITHCUSTOMER and vehicle.status == STAY:
             return True
+        # if last_state == DRIVETOCUSTOMER and vehicle.status == DRIVEWITHCUSTOMER:
+        #     return True
         return False
 
     def select_action(self, open_req, num_veh, his_req):

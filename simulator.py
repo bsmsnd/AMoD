@@ -31,10 +31,10 @@ topRight = [lon[1], lat[1]]
 # Initialize request
 std_num_request = 0.3  # variance for new request per 10 second
 num_request = 0  # count the total number of request   
-flag_dist_enable = False
+flag_dist_enable = True
 time_trafic= [9,18]
 var_trafic = [1,1]
-alpha = 0.6
+alpha = 0.9
 loc_house = [[0.02, 0.01], [0.02, 0.015], [0.07, 0.045], [0.08, 0.01]]
 loc_downtown = [[0.04, 0.035]]
 request_dic = {}  # save all the information about the request
@@ -65,6 +65,8 @@ filename = os.path.join('log', filename)
 win_size = 500  # the sliding window size for average waiting time 
 wait_time = []
 wait_time_sum = 0
+wait_time_total = 0
+wait_time_total_count = 0
 
 
 class vehicle:
@@ -213,6 +215,8 @@ def fleet_update(action):
     global request_dic
     global wait_time
     global wait_time_sum
+    global wait_time_total
+    global wait_time_total_count
     global win_size
     pickup, rebalance = action[0], action[1]
     delete_dic = {}
@@ -269,6 +273,8 @@ def fleet_update(action):
                     request_wait.remove(veh.requestID)
                     wait_time_p = time_p - request_dic[veh.requestID][1]
                     wait_time.append(wait_time_p)
+                    wait_time_total += wait_time_p
+                    wait_time_total_count += 1
                     wait_time_sum += wait_time_p
                     if (len(wait_time)>win_size):
                         wait_time_sum -= wait_time[0]
@@ -371,8 +377,8 @@ if __name__ == "__main__":
 #        print(action[0])
         fleet_update(action)
         if time_p % 1800 == 0 and len(wait_time)>0:
-            print('Total {0} request---- average wait time for {1} request: {2} '.format(len(request_dic), 
-                  len(wait_time), (wait_time_sum / len(wait_time))))
+            print('Total {0} request---- average wait time for {1} request: {2} ------Global avg: {3} '.format(len(request_dic),
+                  len(wait_time), (wait_time_sum / len(wait_time)), (wait_time_total/wait_time_total_count)))
         if flag_plot_enable and time_p % plot_period == 0:
             plot()
         if flag_save_enable and time_p % save_period == 0:
