@@ -528,7 +528,7 @@ class DispatchingLogic:
 
     def optimize_model(self, GAMMA=0.999):
         # this function trains the model with decay factor GAMMA
-        if len(memory) < 2000:
+        if len(memory) < BATCH_SIZE:
             return
         transitions = memory.sample(BATCH_SIZE)
         # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
