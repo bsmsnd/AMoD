@@ -60,8 +60,8 @@ class DispatchingLogic:
         self.matchedReq = set()
         self.matchedTax = set()
 
-#        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.device = torch.device('cpu')
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        #self.device = torch.device('cpu')
 
         # self.last_state = None
 
@@ -82,7 +82,8 @@ class DispatchingLogic:
 #        self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
 
         # FOR A2C
-        self.optimizer = optim.Adam(self.a2c_model.parameters(), lr=1e-5)
+        self.optimizer = optim.Adam(self.a2c_model.parameters(), lr=5e-6)
+        #self.optimizer = optim.SGD(self.a2c_model.parameters(), lr=1e-6, momentum=0.99)
         self.eps = np.finfo(np.float32).eps.item()
 
         
@@ -181,9 +182,9 @@ class DispatchingLogic:
                 self.fleet[individual_state[3]].last_state = individual_state
 
             # A2C
-            open_req = torch.tensor(states[0], dtype=torch.float)  # size of batch_size x 9
-            num_veh = torch.tensor(states[2], dtype=torch.float)  # size of batch_size x 9
-            his_req = torch.tensor(states[1], dtype=torch.float).transpose(1, 2).view(len(states[0]), -1, 3, 3) # size of batch_size x 4 x 3 x 3
+            open_req = torch.tensor(states[0], dtype=torch.float, device = self.device)  # size of batch_size x 9
+            num_veh = torch.tensor(states[2], dtype=torch.float, device = self.device)  # size of batch_size x 9
+            his_req = torch.tensor(states[1], dtype=torch.float, device = self.device).transpose(1, 2).view(len(states[0]), -1, 3, 3) # size of batch_size x 4 x 3 x 3
             # Add new global state
             batch_size = open_req.size()[0]
 
@@ -194,9 +195,9 @@ class DispatchingLogic:
             open_req_global = open_req_global.view(1, open_req_global.size()[0])
             num_veh_global = num_veh_global.view(1, num_veh_global.size()[0])
             his_req_global = his_req_global.contiguous().view(1, his_req_global.size()[0]*his_req_global.size()[1])
-            open_req_global = torch.ones([batch_size, open_req_global.size()[1]]) * open_req_global
-            num_veh_global = torch.ones([batch_size, num_veh_global.size()[1]]) * num_veh_global
-            his_req_global = torch.ones([batch_size, his_req_global.size()[1]]) * his_req_global
+            open_req_global = torch.ones([batch_size, open_req_global.size()[1]]).to(self.device) * open_req_global
+            num_veh_global = torch.ones([batch_size, num_veh_global.size()[1]]).to(self.device)* num_veh_global
+            his_req_global = torch.ones([batch_size, his_req_global.size()[1]]).to(self.device) * his_req_global
             actions, saved_actions = self.a2c_select_action(open_req, num_veh, his_req, open_req_global, num_veh_global, his_req_global)
 
             # gather vehicle labels in each region
@@ -838,12 +839,12 @@ class DispatchingLogic:
         for r in rewards[::-1]:
             R = r + GAMMA * R
             returns.insert(0, R)
-        returns = torch.tensor(returns)
+        returns = torch.tensor(returns, device = self.device)
         returns = (returns - returns.mean()) / (returns.std() + eps)
         for (log_prob, value), R in zip(saved_actions, returns):
             advantage = R - value.item()
             actor_losses.append((-log_prob * advantage))
-            critic_losses.append(F.smooth_l1_loss(value, torch.tensor([R])))
+            critic_losses.append(F.smooth_l1_loss(value, torch.tensor([R], device = self.device)))
 
         actor_loss = torch.stack(actor_losses).sum()
         critic_loss = torch.stack(critic_losses).sum()

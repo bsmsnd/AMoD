@@ -34,6 +34,7 @@ class A2C(nn.Module):
         
         self.saved_actions = []
         self.rewards = []
+        self.dropout = nn.Dropout(p=0.6, inplace=True)
 
 
     def forward(self, x, y, z, x_global, y_global, z_global):
@@ -61,6 +62,7 @@ class A2C(nn.Module):
         out4 = self.relu(self.affine(out3))
         out4 = self.relu(self.fc1(out4))
         out4 = self.relu(self.fc2(out4))
+        out4 = self.dropout(out4)
         out4 = self.relu(self.fc3(out4))
         out4 = self.relu(self.fc4(out4))
         action_scores = self.action_layer(out4)

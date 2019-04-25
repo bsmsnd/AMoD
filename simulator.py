@@ -186,7 +186,7 @@ def generate_request():
     num_distr1 = abs(int(round(np.random.normal(0,std_distr1))))
     num_distr2 = abs(int(round(np.random.normal(0,std_distr2))))
     num_b = abs(int(round(np.random.normal(0,std_num_request))))
-    num_b_ = abs(int(round(np.random.normal(0,std_num_request*1.1))))
+    num_b_ = abs(int(round(np.random.normal(0,std_num_request*alpha))))
     
     if flag_dist_enable:
         generate_request_from_distr(num_distr1, loc_house, loc_downtown)
@@ -405,7 +405,7 @@ if __name__ == "__main__":
         if flag_save_enable and time_p % save_period == 0:
             save()
 
-        if time_p % (4*24*60*60) == 0:
+        if time_p % (5*24*60*60) == 0:
             break
 
     plt.figure()
@@ -427,7 +427,7 @@ if __name__ == "__main__":
         for item in average_wait_time:
             f.write("%s\n" % item)
             
-    with open('waiting_time_runing_avg.txt', "w") as f:
+    with open('waiting_time_global_runing_avg.txt', "w") as f:
         for item in average_wait_time_global:
             f.write("%s\n" % item)
     
