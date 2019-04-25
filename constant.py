@@ -18,7 +18,7 @@ REBALANCE = 3
 NINE_REGIONS = [[1, -1], [1, 0], [1, 1], [0, -1], [0, 0], [0, 1], [-1, -1], [-1, 0], [-1, 1]]
 
 # Set Hyper-parameters
-PICKUP_REWARD = 50
+PICKUP_REWARD = 30
 DISTANCE_COST = -0.03
 NO_PICKUP_PENALTY = -100
 
@@ -36,15 +36,15 @@ TARGET_UPDATE = 10
 ILLEGAL_AREA = -1
 R_ILLEGAL = -1000
 SAVE_PERIOD = 3600
-LOAD_FLAG = False
-SAVE_FLAG = False
+LOAD_FLAG = True
+SAVE_FLAG = True
 
 # choose EPS_START accordingly
 if LOAD_FLAG:
     EPS_START = 0.3
 
-SAVE_PATH = './weight/dqn_weight0424.pt'
-LOAD_PATH = './weight/dqn_weight0424.pt'
+SAVE_PATH = './weight/dqn_weight0424_global_test.pt'
+LOAD_PATH = './weight/dqn_weight0424_global.pt'
 PRINT_REWARD_PERIOD = 120
 MEMORY_SIZE = 5000
 
@@ -54,3 +54,5 @@ REQ_TIME_LEFT = 100
 REQ_TIME_RIGHT = 300
 REWARD_MAX = 100
 REWARD_MIN = 50
+
+STAY_TIME = 30

@@ -24,7 +24,8 @@ class Vehicle:
         self.lastStayTime = 0
         self.req_time = 0
         self.act_before_pick = None
-
+        self.stayStartTIme = 0
+        
     def get_distance_to(self, x, y):
         return math.sqrt((x - self.loc[0]) ** 2 + (y - self.loc[1]) ** 2)
 
@@ -37,7 +38,7 @@ class Vehicle:
         # Reset some parameters as well
         if new_status is RoboTaxiStatus.STAY:
             # if self.status is REBALANCE:
-            #     self.rebalanceArrivalTime = time
+            self.stayStartTIme = time
             self.status = STAY
         if new_status is RoboTaxiStatus.DRIVETOCUSTOMER:
             self.status = DRIVETOCUSTOMER

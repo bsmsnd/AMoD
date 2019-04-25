@@ -50,7 +50,7 @@ speed_initial = 64.37 # km/h  40mile/h
 speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot and save 
-flag_plot_enable = True
+flag_plot_enable = False
 flag_save_enable = False
 plot_period = 30
 save_period = 20
@@ -186,7 +186,7 @@ def generate_request():
     num_distr1 = abs(int(round(np.random.normal(0,std_distr1))))
     num_distr2 = abs(int(round(np.random.normal(0,std_distr2))))
     num_b = abs(int(round(np.random.normal(0,std_num_request))))
-    num_b_ = abs(int(round(np.random.normal(0,std_num_request*3))))
+    num_b_ = abs(int(round(np.random.normal(0,std_num_request*1.1))))
     
     if flag_dist_enable:
         generate_request_from_distr(num_distr1, loc_house, loc_downtown)
@@ -202,7 +202,7 @@ def generate_request():
           num_request += 1
           
     if num_b_ != 0:
-        for i in range(num_b):
+        for i in range(num_b_):
           ori_location1 = [random.uniform(loc_static_distri[0][0]-0.03, loc_static_distri[0][0]+0.03), 
                           random.uniform(loc_static_distri[0][1]-0.03, loc_static_distri[0][1]+0.03)]
           dest_location1 = [random.uniform(lon[0], lon[1]), random.uniform(lat[0], lat[1])]
@@ -405,20 +405,29 @@ if __name__ == "__main__":
         if flag_save_enable and time_p % save_period == 0:
             save()
 
-        if time_p % (2*24*60*60) == 0:
+        if time_p % (2*60*60) == 0:
             break
 
     plt.figure()
     plt.plot(time_passes, average_wait_time)
     plt.xlabel('time/minute')
-    plt.ylabel('average waiting time')
+    plt.ylabel('average waiting time/s')
     # plt.show()
     plt.savefig('Time_Average_Greedy_PICK_DQN_REBALANCE.png')
     
     plt.figure()
-    plt.plot(time_passes, average_wait_time)
+    plt.plot(time_passes, average_wait_time_global)
     plt.xlabel('time/minute')
     plt.ylabel('average waiting time/s')
     # plt.show()
     plt.savefig('Time_Average_Global_Greedy_PICK_DQN_REBALANCE.png')
+    
+    
+    with open('waiting_time_runing_avg.txt', "w") as f:
+        for item in average_wait_time:
+            f.write("%s\n" % item)
+            
+    with open('waiting_time_runing_avg.txt', "w") as f:
+        for item in average_wait_time_global:
+            f.write("%s\n" % item)
     

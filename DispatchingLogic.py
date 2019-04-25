@@ -182,7 +182,8 @@ class DispatchingLogic:
         states_left = [[], [], [], []]
         for i in range(len(states[0])):
             if states[3][i] not in pick_up_vehicle:
-                if self.fleet[i].status == STAY:
+                if self.fleet[i].status == STAY :
+#                if self.fleet[i].status == STAY and self.time - self.fleet[i].stayStartTIme >= STAY_TIME :
                     states_as_records.append([states[0][i], states[1][i], states[2][i], states[3][i], states[4][i]])
                     states_left[0].append(states[0][i])
                     states_left[1].append(states[1][i])
