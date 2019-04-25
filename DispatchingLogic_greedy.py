@@ -8,6 +8,8 @@ import warnings
 from distance_on_unit_sphere import *
 
 
+PROB_LOCAL_REBALANCE = 0.5
+
 class DispatchingLogic:
     """
     dispatching logic in the AidoGuest demo to compute dispatching instructions that are forwarded to the AidoHost
@@ -41,6 +43,7 @@ class DispatchingLogic:
 
         self.matchedReq = set()
         self.matchedTax = set()
+
 
     def of(self, status):
         assert isinstance(status, list)
@@ -102,6 +105,24 @@ class DispatchingLogic:
                                 continue
                             if vehicle in stay_vehicle_each_area[k]:
                                 stay_vehicle_each_area[k].pop(stay_vehicle_each_area[k].index(vehicle))
+
+            for roboTaxi in status[1]:
+                if roboTaxi[2] is RoboTaxiStatus.STAY and roboTaxi[0] not in self.matchedTax:
+                    location = self.coordinate_change("TO_MODEL", roboTaxi[1])
+                    area = self.which_area(location[0], location[1])
+                    rebalance_flag = random.uniform(0, 1)
+                    if rebalance_flag > PROB_LOCAL_REBALANCE:
+                        rebalanceLocation = self.getRandomRebalanceLocation(area, MAP_DIVIDE)
+                        rebalance.append([roboTaxi[0], rebalanceLocation])
+
+            '''
+            # rebalance 1 of the remaining and unmatched STAY taxis
+            for roboTaxi in status[1]:
+                if roboTaxi[2] is RoboTaxiStatus.STAY and roboTaxi[0] not in self.matchedTax:
+                    rebalanceLocation = self.getRandomRebalanceLocation()
+                    rebalance.append([roboTaxi[0], rebalanceLocation])
+                    break
+            '''
 
             '''
             # Global Greedy Model
@@ -169,13 +190,45 @@ class DispatchingLogic:
         return math.sqrt((req_x - vehi_x) ** 2 + (req_y - vehi_y) ** 2)
 
 
-    def getRandomRebalanceLocation(self):
+    def getRandomRebalanceLocation(self, area, MAP_DIVIDE):
         """
         ATTENTION: AMoDeus internally uses the convention (longitude, latitude) for a WGS:84 pair, not the other way
         around as in some other cases.
         """
-        return [random.uniform(self.lngMin, self.lngMax),
-                random.uniform(self.latMin, self.latMax)]
+        LNG_DIVIDE = (self.lngMax - self.lngMin) / MAP_DIVIDE
+        LAT_DIVIDE = (self.latMax - self.latMin) / MAP_DIVIDE
+        if area == 0:
+            return [random.uniform(self.lngMin, self.lngMin + 2 * LNG_DIVIDE),
+                    random.uniform(self.latMin, self.latMin + 2 * LAT_DIVIDE)]
+        elif area == MAP_DIVIDE - 1:
+            return [random.uniform(self.lngMax - 2 * LNG_DIVIDE, self.lngMax),
+                    random.uniform(self.latMin, self.latMin + 2 * LAT_DIVIDE)]
+        elif area == MAP_DIVIDE * (MAP_DIVIDE - 1):
+            return [random.uniform(self.lngMin, self.lngMin + 2 * LNG_DIVIDE),
+                    random.uniform(self.latMax - 2 * LAT_DIVIDE, self.latMax)]
+        elif area == MAP_DIVIDE ** 2 - 1:
+            return [random.uniform(self.lngMax - 2 * LNG_DIVIDE, self.lngMax),
+                    random.uniform(self.latMax - 2 * LAT_DIVIDE, self.latMax)]
+        elif area % MAP_DIVIDE == 0:
+            k = area // MAP_DIVIDE
+            return [random.uniform(self.lngMin, self.lngMin + 2 * LNG_DIVIDE),
+                    random.uniform(self.latMin + (k-1) * LAT_DIVIDE, self.latMin + (k+2) * LAT_DIVIDE)]
+        elif 0 < area < MAP_DIVIDE - 1:
+            return [random.uniform(self.lngMin + (area-1) * LNG_DIVIDE, self.lngMin + (area+2) * LNG_DIVIDE),
+                    random.uniform(self.latMin, self.latMin + 2 * LAT_DIVIDE)]
+        elif area % MAP_DIVIDE == MAP_DIVIDE - 1:
+            k = area // MAP_DIVIDE
+            return [random.uniform(self.lngMax - 2 * LNG_DIVIDE, self.lngMax),
+                    random.uniform(self.latMin + (k-1) * LAT_DIVIDE, self.latMin + (k+2) * LAT_DIVIDE)]
+        elif 0 < area % MAP_DIVIDE < MAP_DIVIDE - 1:
+            k = area % MAP_DIVIDE
+            return [random.uniform(self.lngMin + (k-1) * LNG_DIVIDE, self.lngMin + (k+2) * LNG_DIVIDE),
+                    random.uniform(self.latMax - 2 * LAT_DIVIDE, self.latMax)]
+        else:
+            k = area % MAP_DIVIDE
+            return [random.uniform(self.lngMin + (k-1) * LNG_DIVIDE, self.lngMin + (k+2) * LNG_DIVIDE),
+                    random.uniform(self.latMin + (k-1) * LAT_DIVIDE, self.latMin + (k+2) * LAT_DIVIDE)]
+
 
     def calculateDistance(self, area, requests, stay_vehicles):
         """

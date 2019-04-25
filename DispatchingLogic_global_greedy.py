@@ -3,6 +3,7 @@ import math
 import scipy.optimize as op
 from utils.RoboTaxiStatus import RoboTaxiStatus
 
+PROB_GLOBAL_REBALANCE = 0.5
 
 class DispatchingLogic:
     """
@@ -77,6 +78,13 @@ class DispatchingLogic:
                     self.matchedReq.add(unmatched_requests[row[i]][0])
                     self.matchedTax.add(stay_vehicle[col[i]][0])
 
+
+            for roboTaxi in status[1]:
+                if roboTaxi[2] is RoboTaxiStatus.STAY and roboTaxi[0] not in self.matchedTax:
+                    rebalance_flag = random.uniform(0, 1)
+                    if rebalance_flag > PROB_GLOBAL_REBALANCE:
+                        rebalanceLocation = self.getRandomRebalanceLocation()
+                        rebalance.append([roboTaxi[0], rebalanceLocation])
 
             '''
             # for each unassigned request, add a taxi in STAY mode
