@@ -65,7 +65,7 @@ class DispatchingLogic:
 #        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=1e-3)
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=1e-4)
         #self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
         self.steps_done = 0
 
@@ -388,7 +388,8 @@ class DispatchingLogic:
 
 
         # Optimize the network
-        self.optimize_model()
+        if OPTIMIZE_FLAG:
+            self.optimize_model()
         if SAVE_FLAG==True:
             if self.time % SAVE_PERIOD == 0:
                 saveweight(self.policy_net, SAVE_PATH)
@@ -527,7 +528,7 @@ class DispatchingLogic:
 
     def optimize_model(self, GAMMA=0.999):
         # this function trains the model with decay factor GAMMA
-        if len(memory) < BATCH_SIZE:
+        if len(memory) < 2000:
             return
         transitions = memory.sample(BATCH_SIZE)
         # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for

@@ -38,14 +38,15 @@ TARGET_UPDATE = 10
 ILLEGAL_AREA = -1
 R_ILLEGAL = -1000
 SAVE_PERIOD = 3600
-LOAD_FLAG = False
+LOAD_FLAG = True
 SAVE_FLAG = True
+OPTIMIZE_FLAG = True
 
 # choose EPS_START accordingly
 if LOAD_FLAG:
     EPS_START = 0.3
 
-SAVE_PATH = './weight/dqn_weight0423.pt'
+SAVE_PATH = './weight/dqn_weight0424.pt'
 LOAD_PATH = './weight/dqn_weight.pt'
 PRINT_REWARD_PERIOD = 120
 MEMORY_SIZE = 5000
@@ -56,3 +57,4 @@ REQ_TIME_LEFT = 100
 REQ_TIME_RIGHT = 300
 REWARD_MAX = 100
 REWARD_MIN = 50
+
