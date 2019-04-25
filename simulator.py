@@ -6,7 +6,7 @@ Created on Wed Apr  3 13:48:42 2019
 """
 
 from constant import NUMBER_OF_VEHICLES
-from DispatchingLogic import DispatchingLogic  # To change, please also change the import in generic.py
+from DispatchingLogic_greedy import DispatchingLogic  # To change, please also change the import in generic.py
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,12 +31,12 @@ topRight = [lon[1], lat[1]]
 # Initialize request
 std_num_request = 0.3  # variance for new request per 10 second
 num_request = 0  # count the total number of request   
-flag_dist_enable = False
+flag_dist_enable = True
 time_trafic= [9,18]
 var_trafic = [1,1]
-alpha = 1
-loc_house = [[0.02, 0.01], [0.02, 0.04], [0.07, 0.045], [0.08, 0.01]]
-loc_downtown = [[0.05, 0.03]]
+alpha = 0.9
+loc_house = [[0.02, 0.01], [0.02, 0.015], [0.07, 0.045], [0.08, 0.01]]
+loc_downtown = [[0.04, 0.035]]
 request_dic = {}  # save all the information about the request
 # all the index of request that have been responsed   
 # but the vehicle is drivingtocustome
@@ -49,7 +49,7 @@ speed_initial = 30 # km/h
 speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot and save 
-flag_plot_enable = False
+flag_plot_enable = True
 flag_save_enable = False
 plot_period = 30
 save_period = 20
@@ -357,6 +357,8 @@ def save():
 if __name__ == "__main__":       
     dispatch = DispatchingLogic(bottomLeft, topRight)
     plt.ion()
+    average_wait_time = []
+    time_passes = []
     if flag_plot_enable:
         plt.figure(1)
     if flag_save_enable:
@@ -373,12 +375,21 @@ if __name__ == "__main__":
         if time_p % 1800 == 0:
             print('Total {0} request---- average wait time for {1} request: {2} '.format(len(request_dic), 
                   len(wait_time), (wait_time_sum / len(wait_time))))
+            time_passes.append(time_p / 60)
+            average_wait_time.append(wait_time_sum / len(wait_time))
         if flag_plot_enable and time_p % plot_period == 0:
             plot()
         if flag_save_enable and time_p % save_period == 0:
             save()
-            
-        
-        
+
+        if time_p % (4*24*60*60) == 0:
+            break
+
+    plt.figure()
+    plt.plot(time_passes, average_wait_time)
+    plt.xlabel('time/minute')
+    plt.ylabel('average waiting time')
+    # plt.show()
+    plt.savefig('time_waitingTime_Local_Greedy.png')
         
     
