@@ -54,6 +54,7 @@ class DispatchingLogic:
         self.matchedTax = set()
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(self.device)
 #        self.device = torch.device('cpu')
 
         self.last_state = None
@@ -65,7 +66,7 @@ class DispatchingLogic:
 #        self.target_net = DuelingDQN(N_FEATURE, N_ACTION).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=1e-3)
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=1e-4)
         #self.optimizer = optim.SGD(self.policy_net.parameters(), lr=1e-2, momentum=0.95)
         self.steps_done = 0
 
@@ -695,7 +696,7 @@ class DispatchingLogic:
 
 
     def compute_reward_pickup(self, vehicle):
-        return (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST *5
+        return (vehicle.pickupEndTime - vehicle.pickupStartTime) * DISTANCE_COST *1.406
 
     def coordinate_change(self, direction, loc):
         if direction == 'TO_MODEL':
