@@ -51,7 +51,7 @@ class DispatchingLogic:
             stay_vehicle = []
             for vehicle in status[1]:
                 # vehicle: [label, location, status, 1]
-                if vehicle[2] is RoboTaxiStatus.STAY:
+                if vehicle[2] is RoboTaxiStatus.STAY or vehicle[2] is RoboTaxiStatus.REBALANCEDRIVE:
                     stay_vehicle.append(vehicle)
 
             # store unmatched (unresponded) requests

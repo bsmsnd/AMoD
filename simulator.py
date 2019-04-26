@@ -6,7 +6,7 @@ Created on Wed Apr  3 13:48:42 2019
 """
 
 from constant import NUMBER_OF_VEHICLES
-from DispatchingLogic_greedy import DispatchingLogic  # To change, please also change the import in generic.py
+from DispatchingLogic import DispatchingLogic  # To change, please also change the import in generic.py
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,22 +21,25 @@ import scipy.stats
 
 
 time_p = 0
+time_consuming = 0
+count_solved_req = 0
 # Initialize map
 # map 0.05 degree ~ 5.5km 
-lon = [0.0, 0.1]  # longitude range of the map 
-lat = [0.0, 0.05]  # latitude range of the map
+lon = [0.0, 0.3]  # longitude range of the map 
+lat = [0.0, 0.2]  # latitude range of the map
 bottomLeft = [lon[0], lat[0]]  
 topRight = [lon[1], lat[1]]
 
 # Initialize request
-std_num_request = 0.3  # variance for new request per 10 second
+std_num_request = 0.25  # variance for new request per 10 second
 num_request = 0  # count the total number of request   
-flag_dist_enable = True
+flag_dist_enable = False
 time_trafic= [9,18]
 var_trafic = [1,1]
-alpha = 0.9
+alpha = 1.1
 loc_house = [[0.02, 0.01], [0.02, 0.015], [0.07, 0.045], [0.08, 0.01]]
 loc_downtown = [[0.04, 0.035]]
+loc_static_distri = [[0.2,0.1]]
 request_dic = {}  # save all the information about the request
 # all the index of request that have been responsed   
 # but the vehicle is drivingtocustome
@@ -45,7 +48,7 @@ request_wait = []
 req = [] 
 
 # Initialize vehicle speed
-speed_initial = 30 # km/h
+speed_initial = 64.37 # km/h  40mile/h
 speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot and save 
@@ -65,6 +68,8 @@ filename = os.path.join('log', filename)
 win_size = 500  # the sliding window size for average waiting time 
 wait_time = []
 wait_time_sum = 0
+wait_time_total = 0
+wait_time_count = 0
 
 
 class vehicle:
@@ -173,6 +178,7 @@ def generate_request():
     global var_trafic
     global loc_house
     global loc_downtown
+    global loc_static_distri
     time_day = time_p % (24*60*60)
     hour_day = time_day/(60*60)
     pdf1 = scipy.stats.norm(time_trafic[0], var_trafic[0]).pdf(hour_day)
@@ -182,6 +188,8 @@ def generate_request():
     num_distr1 = abs(int(round(np.random.normal(0,std_distr1))))
     num_distr2 = abs(int(round(np.random.normal(0,std_distr2))))
     num_b = abs(int(round(np.random.normal(0,std_num_request))))
+    num_b_ = abs(int(round(np.random.normal(0,std_num_request*alpha))))
+    
     if flag_dist_enable:
         generate_request_from_distr(num_distr1, loc_house, loc_downtown)
         generate_request_from_distr(num_distr2, loc_downtown, loc_house)
@@ -193,6 +201,17 @@ def generate_request():
           req_temp = [num_request, req_time, ori_location, dest_location]
           req.append(req_temp)
           request_dic[num_request] = req_temp
+          num_request += 1
+          
+    if num_b_ != 0:
+        for i in range(num_b_):
+          ori_location1 = [random.uniform(loc_static_distri[0][0]-0.03, loc_static_distri[0][0]+0.03), 
+                          random.uniform(loc_static_distri[0][1]-0.03, loc_static_distri[0][1]+0.03)]
+          dest_location1 = [random.uniform(lon[0], lon[1]), random.uniform(lat[0], lat[1])]
+          req_time1 = np.random.uniform(time_p-10, time_p)
+          req_temp1 = [num_request, req_time1, ori_location1, dest_location1]
+          req.append(req_temp1)
+          request_dic[num_request] = req_temp1
           num_request += 1
     return
 
@@ -213,7 +232,11 @@ def fleet_update(action):
     global request_dic
     global wait_time
     global wait_time_sum
+    global wait_time_count
+    global wait_time_total
     global win_size
+    global time_consuming
+    global count_solved_req
     pickup, rebalance = action[0], action[1]
     delete_dic = {}
     # update vehicle state for pick up
@@ -253,15 +276,20 @@ def fleet_update(action):
             pre_time = cal_time(veh.loc, veh.destination)
             if pre_time < 10:  
             # there is a state change in the 10 second
+                if (veh.status is RoboTaxiStatus.REBALANCEDRIVE or 
+                    veh.status is RoboTaxiStatus.DRIVETOCUSTOMER):
+                    time_consuming += pre_time
                 if (veh.status is RoboTaxiStatus.DRIVEWITHCUSTOMER or 
                     veh.status is RoboTaxiStatus.REBALANCEDRIVE):
                     fleet[i].status = RoboTaxiStatus.STAY
                     fleet[i].loc = veh.destination
+                    
                     if (veh.status is RoboTaxiStatus.DRIVEWITHCUSTOMER):
                         fleet[i].requestID = -1
                     continue
                 else:
                     # the state is changing from drivetocustome to drivewithcustome
+                    count_solved_req += 1
                     loc, des = veh.destination, veh.destination_custome
                     ratio = (10-pre_time)*speed/cal_dis(loc, des)
                     fleet[i].status = RoboTaxiStatus.DRIVEWITHCUSTOMER
@@ -270,6 +298,8 @@ def fleet_update(action):
                     wait_time_p = time_p - request_dic[veh.requestID][1]
                     wait_time.append(wait_time_p)
                     wait_time_sum += wait_time_p
+                    wait_time_total += wait_time_p
+                    wait_time_count += 1
                     if (len(wait_time)>win_size):
                         wait_time_sum -= wait_time[0]
                         del wait_time[0]
@@ -280,6 +310,7 @@ def fleet_update(action):
             # there is no state change in the 10 second
                     loc, des = veh.loc, veh.destination
                     ratio = 10*speed/cal_dis(loc, des)
+                    time_consuming += 10
             # update new location        
             new_loc = [loc[0] + ratio * (des[0]-loc[0]), 
                        loc[1] + ratio * (des[1]-loc[1])]
@@ -358,6 +389,7 @@ if __name__ == "__main__":
     dispatch = DispatchingLogic(bottomLeft, topRight)
     plt.ion()
     average_wait_time = []
+    average_wait_time_global = []
     time_passes = []
     if flag_plot_enable:
         plt.figure(1)
@@ -372,11 +404,13 @@ if __name__ == "__main__":
         action = dispatch.of([time_p, state_vehicle, req, [0,0,0]])
 #        print(action[0])
         fleet_update(action)
-        if time_p % 1800 == 0:
-            print('Total {0} request---- average wait time for {1} request: {2} '.format(len(request_dic), 
-                  len(wait_time), (wait_time_sum / len(wait_time))))
+        if time_p % 1800 == 0 and len(wait_time) and wait_time_count and count_solved_req:
+            print('Total {0} request---- average wait time for {1} request: {2} ----global avg time: {3} ---avg consuming: {4}'.format(
+                    len(request_dic), len(wait_time), (wait_time_sum / len(wait_time)),
+                    (wait_time_total/wait_time_count), time_consuming / count_solved_req))
             time_passes.append(time_p / 60)
             average_wait_time.append(wait_time_sum / len(wait_time))
+            average_wait_time_global.append(wait_time_total / wait_time_count)
         if flag_plot_enable and time_p % plot_period == 0:
             plot()
         if flag_save_enable and time_p % save_period == 0:
@@ -388,8 +422,23 @@ if __name__ == "__main__":
     plt.figure()
     plt.plot(time_passes, average_wait_time)
     plt.xlabel('time/minute')
-    plt.ylabel('average waiting time')
+    plt.ylabel('average waiting time/s')
     # plt.show()
-    plt.savefig('time_waitingTime_Local_Greedy.png')
-        
+    plt.savefig('Time_Average_Greedy_PICK_DQN_REBALANCE.png')
+    
+    plt.figure()
+    plt.plot(time_passes, average_wait_time_global)
+    plt.xlabel('time/minute')
+    plt.ylabel('average waiting time/s')
+    # plt.show()
+    plt.savefig('Time_Average_Global_Greedy_PICK_DQN_REBALANCE.png')
+    
+    
+    with open('waiting_time_runing_avg.txt', "w") as f:
+        for item in average_wait_time:
+            f.write("%s\n" % item)
+            
+    with open('waiting_time_global_runing_avg.txt', "w") as f:
+        for item in average_wait_time_global:
+            f.write("%s\n" % item)
     
