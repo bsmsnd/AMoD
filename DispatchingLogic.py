@@ -130,6 +130,7 @@ class DispatchingLogic:
             vehicles_should_update[vehicle_label] = True
 
         states_copy = states.copy()
+        rebalance_store = [self.fleet[i].rebalanceStartTime for i in range(NUMBER_OF_VEHICLES)]
 
         if not states[0]:
             return [pickup, rebalance]  # empty
@@ -205,6 +206,7 @@ class DispatchingLogic:
 
             for individual_state in states_as_records:
                 self.fleet[individual_state[3]].last_state = individual_state
+
 
             # DQN
             open_req = torch.tensor(states_left[0], dtype=torch.float).to(self.device)  # size of batch_size x 9
@@ -409,7 +411,7 @@ class DispatchingLogic:
             if vehicles_should_get_rewards[i]:
                 if vehicle_last_state[i][0] == DRIVEWITHCUSTOMER and self.fleet[i].status == STAY and self.fleet[i].act_before_pick is None:
                     continue
-                r = self.reward_compute(self.fleet[i], vehicle_last_state[i][0])
+                r = self.reward_compute(self.fleet[i], vehicle_last_state[i][0], rebalance_store[i])
 #                print('old state:{0}, state_now: {1}, reward:{2}'.format(vehicle_last_state[i][0],r))
                 # Save rewards here
 
@@ -634,7 +636,7 @@ class DispatchingLogic:
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
-    def reward_compute(self, vehicle, old_state):
+    def reward_compute(self, vehicle, old_state, old_rebalance_time):
         """
         This function computes the reward given the last state and current state
         :param vehicle: the vehicle to get reward. Type: Vehicle
@@ -647,7 +649,7 @@ class DispatchingLogic:
 
         reward = None
         if old_state == REBALANCE and (vehicle.status == STAY or vehicle.status == REBALANCE):  # end of rebalance: give deduction
-            reward = (self.time - vehicle.rebalanceStartTime) * DISTANCE_COST
+            reward = (self.time - old_rebalance_time) * DISTANCE_COST
         # if vehicle.status == STAY and old_state == DRIVEWITHCUSTOMER:
         #     req_wait_time = vehicle.pickupEndTime - vehicle.req_time
         #     if req_wait_time<=100:
@@ -665,7 +667,8 @@ class DispatchingLogic:
         # if (old_state == STAY or old_state == REBALANCE) and vehicle.status == DRIVETOCUSTOMER:
         #     vehicle.act_before_pick = old_state
         if old_state == DRIVEWITHCUSTOMER and vehicle.status == STAY:
-            reward = self.compute_reward_before_pickup(vehicle) + self.compute_reward_pickup(vehicle) + PICKUP_REWARD
+            reward = self.compute_reward_before_pickup(vehicle, old_rebalance_time) + self.compute_reward_pickup(vehicle) + PICKUP_REWARD
+
         # if old_state == DRIVETOCUSTOMER and vehicle.status == DRIVEWITHCUSTOMER:
         #     if vehicle.act_before_pick == REBALANCE:
         #         vehicle.act_before_pick = None
@@ -683,7 +686,7 @@ class DispatchingLogic:
         #     vehicle.penalty_for_not_pickup_for_next_time = 0
         return reward
 
-    def compute_reward_before_pickup(self, vehicle):
+    def compute_reward_before_pickup(self, vehicle, old_rebalance_time):
         assert isinstance(vehicle, Vehicle)
         if vehicle.act_before_pick is None:
             raise ValueError('Action before pick up is not STAY or REBALANCE')
@@ -692,7 +695,7 @@ class DispatchingLogic:
             return 0
         elif 0 < vehicle.act_before_pick < N_ACTION:
             vehicle.act_before_pick = None
-            return (vehicle.pickupStartTime - vehicle.rebalanceStartTime) * DISTANCE_COST
+            return (vehicle.pickupStartTime - old_rebalance_time) * DISTANCE_COST
         else:
             raise ValueError('Action before pick up out of range')
 

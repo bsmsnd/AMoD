@@ -20,7 +20,7 @@ NINE_REGIONS = [[1, -1], [1, 0], [1, 1], [0, -1], [0, 0], [0, 1], [-1, -1], [-1,
 # Set Hyper-parameters
 PICKUP_REWARD = 30
 #DISTANCE_COST = -0.03
-DISTANCE_COST = -10
+DISTANCE_COST = -0.03
 NO_PICKUP_PENALTY = -100
 
 STAY_TIMEOUT = 60
@@ -37,8 +37,8 @@ TARGET_UPDATE = 10
 ILLEGAL_AREA = -1
 R_ILLEGAL = -1000
 SAVE_PERIOD = 3600
-LOAD_FLAG = True
-SAVE_FLAG = True
+LOAD_FLAG = False
+SAVE_FLAG = False
 
 # choose EPS_START accordingly
 if LOAD_FLAG:
