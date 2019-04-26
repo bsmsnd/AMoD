@@ -1,7 +1,7 @@
 #BATCH_SIZE = 32  # Some hyper-parameters to adjust!
 GRAPHMAXCOORDINATE = 100  # This sets the max. coordinate of
 NUMBER_OF_VEHICLES = 20  # Change AidoGuest
-MAP_DIVIDE = 4
+MAP_DIVIDE = 5
 
 global LAT_SCALE
 
@@ -19,7 +19,8 @@ NINE_REGIONS = [[1, -1], [1, 0], [1, 1], [0, -1], [0, 0], [0, 1], [-1, -1], [-1,
 
 # Set Hyper-parameters
 PICKUP_REWARD = 30
-DISTANCE_COST = -0.03
+#DISTANCE_COST = -0.03
+DISTANCE_COST = -10
 NO_PICKUP_PENALTY = -100
 
 STAY_TIMEOUT = 60
@@ -41,10 +42,10 @@ SAVE_FLAG = True
 
 # choose EPS_START accordingly
 if LOAD_FLAG:
-    EPS_START = 0.3
+    EPS_START = 0.1
 
-SAVE_PATH = './weight/dqn_weight0424_global_test.pt'
-LOAD_PATH = './weight/dqn_weight0424_global.pt'
+SAVE_PATH = './weight/dqn_weight0424_global_wait_180_5_1_2.pt'
+LOAD_PATH = './weight/dqn_weight0424_global_wait_180_5_1_2.pt'
 PRINT_REWARD_PERIOD = 120
 MEMORY_SIZE = 5000
 
@@ -55,4 +56,4 @@ REQ_TIME_RIGHT = 300
 REWARD_MAX = 100
 REWARD_MIN = 50
 
-STAY_TIME = 30
+STAY_TIME = 60

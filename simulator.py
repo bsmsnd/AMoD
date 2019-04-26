@@ -21,6 +21,8 @@ import scipy.stats
 
 
 time_p = 0
+time_consuming = 0
+count_solved_req = 0
 # Initialize map
 # map 0.05 degree ~ 5.5km 
 lon = [0.0, 0.3]  # longitude range of the map 
@@ -34,7 +36,7 @@ num_request = 0  # count the total number of request
 flag_dist_enable = False
 time_trafic= [9,18]
 var_trafic = [1,1]
-alpha = 0.55
+alpha = 1.1
 loc_house = [[0.02, 0.01], [0.02, 0.015], [0.07, 0.045], [0.08, 0.01]]
 loc_downtown = [[0.04, 0.035]]
 loc_static_distri = [[0.2,0.1]]
@@ -50,7 +52,7 @@ speed_initial = 64.37 # km/h  40mile/h
 speed = speed_initial/(3600 * 111.3196)
 
 # constant for plot and save 
-flag_plot_enable = False
+flag_plot_enable = True
 flag_save_enable = False
 plot_period = 30
 save_period = 20
@@ -186,7 +188,7 @@ def generate_request():
     num_distr1 = abs(int(round(np.random.normal(0,std_distr1))))
     num_distr2 = abs(int(round(np.random.normal(0,std_distr2))))
     num_b = abs(int(round(np.random.normal(0,std_num_request))))
-    num_b_ = abs(int(round(np.random.normal(0,std_num_request*1.1))))
+    num_b_ = abs(int(round(np.random.normal(0,std_num_request*alpha))))
     
     if flag_dist_enable:
         generate_request_from_distr(num_distr1, loc_house, loc_downtown)
@@ -233,6 +235,8 @@ def fleet_update(action):
     global wait_time_count
     global wait_time_total
     global win_size
+    global time_consuming
+    global count_solved_req
     pickup, rebalance = action[0], action[1]
     delete_dic = {}
     # update vehicle state for pick up
@@ -272,15 +276,20 @@ def fleet_update(action):
             pre_time = cal_time(veh.loc, veh.destination)
             if pre_time < 10:  
             # there is a state change in the 10 second
+                if (veh.status is RoboTaxiStatus.REBALANCEDRIVE or 
+                    veh.status is RoboTaxiStatus.DRIVETOCUSTOMER):
+                    time_consuming += pre_time
                 if (veh.status is RoboTaxiStatus.DRIVEWITHCUSTOMER or 
                     veh.status is RoboTaxiStatus.REBALANCEDRIVE):
                     fleet[i].status = RoboTaxiStatus.STAY
                     fleet[i].loc = veh.destination
+                    
                     if (veh.status is RoboTaxiStatus.DRIVEWITHCUSTOMER):
                         fleet[i].requestID = -1
                     continue
                 else:
                     # the state is changing from drivetocustome to drivewithcustome
+                    count_solved_req += 1
                     loc, des = veh.destination, veh.destination_custome
                     ratio = (10-pre_time)*speed/cal_dis(loc, des)
                     fleet[i].status = RoboTaxiStatus.DRIVEWITHCUSTOMER
@@ -301,6 +310,7 @@ def fleet_update(action):
             # there is no state change in the 10 second
                     loc, des = veh.loc, veh.destination
                     ratio = 10*speed/cal_dis(loc, des)
+                    time_consuming += 10
             # update new location        
             new_loc = [loc[0] + ratio * (des[0]-loc[0]), 
                        loc[1] + ratio * (des[1]-loc[1])]
@@ -394,9 +404,10 @@ if __name__ == "__main__":
         action = dispatch.of([time_p, state_vehicle, req, [0,0,0]])
 #        print(action[0])
         fleet_update(action)
-        if time_p % 1800 == 0 and len(wait_time) and wait_time_count:
-            print('Total {0} request---- average wait time for {1} request: {2} ----global avg waiting time: {3}'.format(len(request_dic), 
-                  len(wait_time), (wait_time_sum / len(wait_time)),(wait_time_total/wait_time_count)))
+        if time_p % 1800 == 0 and len(wait_time) and wait_time_count and count_solved_req:
+            print('Total {0} request---- average wait time for {1} request: {2} ----global avg time: {3} ---avg consuming: {4}'.format(
+                    len(request_dic), len(wait_time), (wait_time_sum / len(wait_time)),
+                    (wait_time_total/wait_time_count), time_consuming / count_solved_req))
             time_passes.append(time_p / 60)
             average_wait_time.append(wait_time_sum / len(wait_time))
             average_wait_time_global.append(wait_time_total / wait_time_count)
@@ -405,7 +416,7 @@ if __name__ == "__main__":
         if flag_save_enable and time_p % save_period == 0:
             save()
 
-        if time_p % (2*60*60) == 0:
+        if time_p % (4*24*60*60) == 0:
             break
 
     plt.figure()
@@ -427,7 +438,7 @@ if __name__ == "__main__":
         for item in average_wait_time:
             f.write("%s\n" % item)
             
-    with open('waiting_time_runing_avg.txt', "w") as f:
+    with open('waiting_time_global_runing_avg.txt', "w") as f:
         for item in average_wait_time_global:
             f.write("%s\n" % item)
     

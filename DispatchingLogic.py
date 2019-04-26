@@ -182,7 +182,7 @@ class DispatchingLogic:
         states_left = [[], [], [], []]
         for i in range(len(states[0])):
             if states[3][i] not in pick_up_vehicle:
-                if self.fleet[i].status == STAY :
+                if self.fleet[i].status == STAY and self.time - self.fleet[i].lastStayTime > STAY_TIME:
 #                if self.fleet[i].status == STAY and self.time - self.fleet[i].stayStartTIme >= STAY_TIME :
                     states_as_records.append([states[0][i], states[1][i], states[2][i], states[3][i], states[4][i]])
                     states_left[0].append(states[0][i])
@@ -410,6 +410,7 @@ class DispatchingLogic:
                 if vehicle_last_state[i][0] == DRIVEWITHCUSTOMER and self.fleet[i].status == STAY and self.fleet[i].act_before_pick is None:
                     continue
                 r = self.reward_compute(self.fleet[i], vehicle_last_state[i][0])
+#                print('old state:{0}, state_now: {1}, reward:{2}'.format(vehicle_last_state[i][0],r))
                 # Save rewards here
 
                 self.running_reward = self.running_reward + r
