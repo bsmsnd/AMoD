@@ -104,6 +104,8 @@ class DispatchingLogic:
         # for greedy pick up
         self.matchedReq = set()
         self.matchedTax = set()
+        
+        self.last_req_time = 0
 
     def of(self, status):
         ####################################################################################
@@ -179,17 +181,20 @@ class DispatchingLogic:
                 self.matchedTax.add(available_vehicle[col[i]][0])
 
 
-
+        if len(requests) > 0:
+            self.last_req_time = self.time
+            
         states_left = [[], [], [], []]
         for i in range(len(states[0])):
             if states[3][i] not in pick_up_vehicle:
                 if self.fleet[i].status == STAY and self.time - self.fleet[i].lastStayTime > STAY_TIME:
 #                if self.fleet[i].status == STAY and self.time - self.fleet[i].stayStartTIme >= STAY_TIME :
-                    states_as_records.append([states[0][i], states[1][i], states[2][i], states[3][i], states[4][i]])
-                    states_left[0].append(states[0][i])
-                    states_left[1].append(states[1][i])
-                    states_left[2].append(states[2][i])
-                    states_left[3].append(states[3][i])
+                    if self.time - self.last_req_time < FREEZE_TIME:
+                        states_as_records.append([states[0][i], states[1][i], states[2][i], states[3][i], states[4][i]])
+                        states_left[0].append(states[0][i])
+                        states_left[1].append(states[1][i])
+                        states_left[2].append(states[2][i])
+                        states_left[3].append(states[3][i])
             else:
                 self.fleet[i].act_before_pick = self.fleet[i].last_action
                 self.fleet[i].last_state = [states[0][i], states[1][i], states[2][i], states[3][i], states[4][i]]
