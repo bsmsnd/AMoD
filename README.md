@@ -17,4 +17,11 @@ We have implemented a ideal(mini) simulator to allow evaluation of the model in 
 
 Note that the simulator is only for validation, and should not be used for large-scale learning becasuse it has 2 assumptions that are not valid in real traffic: it allows vehicles to move in any direction, and requests are generated randomly. 
  
+Run Different Models
+--------------------
+
+To run different models, 
+- Change this line `from DispatchingLogic import DispatchingLogic` in the `simulator.py`. The name of the model should correspond to the file name as listed in the folder.
+- Change hyperparameters in `constant.py` and 'simulator.py'.
+- To run Amodeus simulator, please refer to the tutorial under the folder "Amodeus tutorial".
 
